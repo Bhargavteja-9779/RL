@@ -62,10 +62,45 @@ def boot_ci(x, n=5000, stat=np.mean):
 
 # ------------------------------------------------------------------ loading
 def load_runs():
-    recs = []
+    import gzip
+
+    recs = {}
+    for f in sorted((RES / "runs").glob("*.json.gz")):
+        recs[f.name[:-8]] = json.loads(gzip.decompress(f.read_bytes()))
     for f in sorted((RES / "runs").glob("*.json")):
-        recs.append(json.loads(f.read_text()))
-    return recs
+        recs[f.stem] = json.loads(f.read_text())
+    return list(recs.values())
+
+
+def test_frame_final(recs, name):
+    rows = []
+    for r in recs:
+        if r["name"] == name and "test_final" in r:
+            for t in r["test_final"]:
+                rows.append({"method": name, "train_seed": r["seed"], **t})
+    return pd.DataFrame(rows)
+
+
+def final_vs_best(recs):
+    rows = []
+    for n in ("DQN", "AA-DQN"):
+        b, f = test_frame(recs, n), test_frame_final(recs, n)
+        if b.empty or f.empty:
+            continue
+        be = [r["best_episode"] for r in recs if r["name"] == n]
+        for lab, df in (("validation-selected", b), ("final iterate", f)):
+            rr, oo = per_seed(df, "return"), per_seed(df, "on_time_rate")
+            rows.append(dict(method=n, checkpoint=lab, ret=rr.mean(), ret_sd=rr.std(ddof=1), on=oo.mean(),
+                             on_sd=oo.std(ddof=1), best_ep=np.mean(be)))
+    df = pd.DataFrame(rows)
+    df.to_csv(SUM / "final_vs_best.csv", index=False)
+    lines = [r"\begin{tabular}{llccc}", r"\toprule", r"Method & Checkpoint & Return & On-time rate & Mean selected episode \\", r"\midrule"]
+    for _, r in df.iterrows():
+        lines.append(f"{r.method} & {r.checkpoint} & {r.ret:.2f} $\\pm$ {r.ret_sd:.2f} & {r.on:.3f} $\\pm$ {r.on_sd:.3f} & "
+                     + (f"{r.best_ep:.0f}" if r.checkpoint.startswith("val") else "3000") + r" \\")
+    lines += [r"\bottomrule", r"\end{tabular}"]
+    (TAB / "final_vs_best.tex").write_text("\n".join(lines))
+    return df
 
 
 def test_frame(recs, name):

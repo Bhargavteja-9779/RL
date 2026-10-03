@@ -1,0 +1,35 @@
+\documentclass[11pt]{letter}
+\usepackage[a4paper,margin=2.4cm]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{newtxtext,newtxmath}
+\usepackage[hidelinks]{hyperref}
+\input{numbers}
+\signature{Dr.\ Rajay Vedaraj I.S.\\Corresponding author, on behalf of all authors\\Vellore Institute of Technology, Vellore 632014, Tamil Nadu, India\\\href{mailto:rajay@vit.ac.in}{rajay@vit.ac.in}}
+\address{Vellore Institute of Technology\\Vellore 632014, Tamil Nadu, India}
+\date{\today}
+\begin{document}
+\begin{letter}{The Editor-in-Chief\\\textit{Results in Engineering}\\Elsevier}
+\opening{Dear Editor,}
+
+We are pleased to submit our original research article entitled \textbf{``Attention-aware task scheduling under partial observability of human cognitive state: a memory-augmented deep reinforcement learning approach''} for consideration for publication in \textit{Results in Engineering}.
+
+Conventional dispatching rules such as FIFO and Earliest Deadline First assume that the resource executing the work has constant capacity. People do not: their attention is depleted by sustained effort, fatigue accumulates, alertness follows a circadian rhythm, and well-timed breaks restore capacity. Moreover, a person's cognitive state can only be estimated from noisy proxies. Our manuscript formulates human-centric task scheduling as a partially observable Markov decision process in which rest is an explicit scheduling action, and solves it with an attention-aware deep Q-network that combines an observation history with Double Q-learning and a dueling architecture.
+
+The main contributions are:
+\begin{itemize}
+  \item a cognitively grounded, fully specified and openly released scheduling simulator, combining homeostatic attention, exponential fatigue--recovery and circadian dynamics with stochastic task arrivals and deadlines;
+  \item a POMDP formulation with noisy cognitive observations and a multi-objective reward whose productivity--fatigue trade-off is characterised as a Pareto front;
+  \item a rigorous evaluation against seven baselines, including grid-tuned, cognition-aware heuristics that see the same noisy signals, using 102 trained agents, ten seeds per main configuration, 500 held-out test days with common random numbers, and multiplicity-corrected paired tests;
+  \item evidence on \emph{why} learning helps, from environment and component ablations, behavioural analysis and zero-shot robustness tests across sensor noise, worker profiles and workloads.
+\end{itemize}
+On held-out days, the proposed agent completes \aaOnTimePct\% of tasks on time, compared with \bestHeurOnTimePct\% for the best tuned heuristic and \edfOnTimePct\% for EDF, while keeping mean fatigue at \aaFatigue{} versus \edfFatigue{} under EDF. The advantage disappears when the cognitive dynamics are removed, which shows that the gain comes from modelling human state rather than from reinforcement learning alone.
+
+We believe the work suits the readership of \textit{Results in Engineering}, because it addresses an engineering design problem at the interface of artificial intelligence, industrial engineering and human factors that is central to human-centric (Industry~5.0) systems. The results are fully reproducible from the released code and data.
+
+We confirm that this manuscript is original, has not been published previously, and is not under consideration for publication elsewhere. All authors have approved the manuscript and agree with its submission. The authors declare no competing interests. No human-subject data were collected. The use of AI-assisted tools during preparation is disclosed in the manuscript in accordance with Elsevier policy.
+
+Thank you for considering our submission. We look forward to hearing from you.
+
+\closing{Yours sincerely,}
+\end{letter}
+\end{document}
