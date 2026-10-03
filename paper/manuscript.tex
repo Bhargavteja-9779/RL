@@ -1,0 +1,70 @@
+\documentclass[preprint,12pt]{elsarticle}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{newtxtext,newtxmath}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx,booktabs,makecell,multirow,array}
+\usepackage[labelfont=bf]{caption}
+\usepackage{enumitem}
+\usepackage{algorithm}
+\usepackage[noend]{algpseudocode}
+\usepackage{xcolor}
+\usepackage[hidelinks]{hyperref}
+\usepackage{lineno}
+\usepackage[a4paper,margin=2.4cm]{geometry}
+\usepackage{setspace}
+\onehalfspacing
+\linenumbers
+\biboptions{numbers,sort&compress}
+\journal{Results in Engineering}
+\input{numbers}
+
+\begin{document}
+\begin{frontmatter}
+\title{Attention-aware task scheduling under partial observability of human cognitive state: a memory-augmented deep reinforcement learning approach}
+
+\author[vit]{P.\,N. Bhargav Teja}
+\author[vit]{Lanka Sree Chathurya}
+\author[vit]{Rajay Vedaraj I.S.\corref{cor1}}
+\ead{rajay@vit.ac.in}
+\cortext[cor1]{Corresponding author.}
+\affiliation[vit]{organization={Vellore Institute of Technology},
+            city={Vellore},
+            postcode={632014},
+            state={Tamil Nadu},
+            country={India}}
+
+\input{sections/00_abstract}
+\end{frontmatter}
+
+\input{sections/01_intro}
+\input{sections/02_related}
+\input{sections/03_problem}
+\input{sections/04_method}
+\input{sections/05_setup}
+\input{sections/06_results}
+\input{sections/07_discussion}
+\input{sections/08_conclusion}
+
+\section*{CRediT authorship contribution statement}
+\textbf{P.\,N. Bhargav Teja:} Conceptualization, Methodology, Software, Formal analysis, Investigation, Visualization, Writing -- original draft. \textbf{Lanka Sree Chathurya:} Methodology, Software, Validation, Data curation, Investigation, Writing -- original draft. \textbf{Rajay Vedaraj I.S.:} Conceptualization, Supervision, Methodology, Resources, Project administration, Writing -- review \& editing.
+
+\section*{Declaration of competing interest}
+The authors declare that they have no known competing financial interests or personal relationships that could have appeared to influence the work reported in this paper.
+
+\section*{Funding}
+This research did not receive any specific grant from funding agencies in the public, commercial, or not-for-profit sectors.
+
+\section*{Data availability}
+The simulator, agents, baselines, experiment configurations, raw per-episode results and the scripts that generate every table and figure are openly available at \url{https://github.com/bhargavteja-9779/rl}. No human-subject data were collected.
+
+\section*{Declaration of generative AI and AI-assisted technologies in the manuscript preparation process}
+During the preparation of this work the authors used an AI assistant (Claude, Anthropic) to support code development, language editing and the organisation of the manuscript. After using this tool, the authors reviewed and edited the content as needed and take full responsibility for the content of the published article.
+
+\section*{Acknowledgements}
+The authors thank Vellore Institute of Technology for providing the computational facilities used in this study.
+
+\bibliographystyle{elsarticle-num}
+\bibliography{references}
+
+\end{document}

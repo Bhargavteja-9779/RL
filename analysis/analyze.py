@@ -1,0 +1,587 @@
+"""Aggregate experiment outputs into statistics, LaTeX tables and publication figures.
+
+python -m analysis.analyze
+"""
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+import matplotlib
+
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+from scipy import stats
+
+ROOT = Path(__file__).resolve().parents[1]
+RES = ROOT / "results"
+FIG = ROOT / "paper" / "figures"
+TAB = ROOT / "paper" / "tables"
+SUM = RES / "summary"
+for d in (FIG, TAB, SUM):
+    d.mkdir(parents=True, exist_ok=True)
+
+C = {"AA-DQN": "#2a78d6", "DQN": "#eb6834", "Cog-Heuristic": "#1baf7a", "EDF-Threshold": "#eda100",
+     "EDF-Periodic": "#e87ba4", "EDF": "#6b6a66", "FIFO": "#9a9993", "SPT": "#52514e", "Random": "#c3c2b7"}
+MK = {"AA-DQN": "o", "DQN": "s", "Cog-Heuristic": "^", "EDF-Threshold": "D", "EDF-Periodic": "v", "EDF": "x",
+      "FIFO": "+", "SPT": "*", "Random": "."}
+INK, INK2, GRID = "#0b0b0b", "#52514e", "#e4e3df"
+ORDER = ["Random", "FIFO", "EDF", "SPT", "EDF-Periodic", "EDF-Threshold", "Cog-Heuristic", "DQN", "AA-DQN"]
+HEUR = ["Random", "FIFO", "EDF", "SPT", "EDF-Periodic", "EDF-Threshold", "Cog-Heuristic"]
+METRICS = ["return", "on_time_rate", "weighted_on_time", "completion_rate", "mean_attention", "mean_fatigue",
+           "high_fatigue_frac", "break_frac", "effort"]
+RNG = np.random.default_rng(2024)
+
+plt.rcParams.update({
+    "font.family": "serif", "font.serif": ["STIXGeneral", "DejaVu Serif"], "mathtext.fontset": "stix",
+    "font.size": 8, "axes.titlesize": 8.5, "axes.labelsize": 8, "xtick.labelsize": 7, "ytick.labelsize": 7,
+    "legend.fontsize": 7, "axes.edgecolor": INK2, "axes.labelcolor": INK, "xtick.color": INK2, "ytick.color": INK2,
+    "axes.linewidth": 0.6, "axes.spines.top": False, "axes.spines.right": False, "axes.grid": True,
+    "grid.color": GRID, "grid.linewidth": 0.5, "legend.frameon": False, "figure.dpi": 150, "savefig.bbox": "tight",
+    "savefig.pad_inches": 0.02, "lines.linewidth": 1.6,
+})
+W1, W2 = 3.5, 7.2
+
+
+def save(fig, name):
+    fig.savefig(FIG / f"{name}.pdf")
+    fig.savefig(FIG / f"{name}.png", dpi=300)
+    plt.close(fig)
+
+
+def boot_ci(x, n=5000, stat=np.mean):
+    x = np.asarray(x, float)
+    if len(x) < 2:
+        return (np.nan, np.nan)
+    idx = RNG.integers(0, len(x), size=(n, len(x)))
+    b = stat(x[idx], axis=1)
+    return tuple(np.percentile(b, [2.5, 97.5]))
+
+
+# ------------------------------------------------------------------ loading
+def load_runs():
+    recs = []
+    for f in sorted((RES / "runs").glob("*.json")):
+        recs.append(json.loads(f.read_text()))
+    return recs
+
+
+def test_frame(recs, name):
+    rows = []
+    for r in recs:
+        if r["name"] == name:
+            for t in r["test"]:
+                rows.append({"method": name, "train_seed": r["seed"], **t})
+    return pd.DataFrame(rows)
+
+
+def heur_frame(variant):
+    return pd.read_csv(RES / "heuristics" / f"{variant}.csv")
+
+
+def per_seed(df, metric):
+    return df.groupby("train_seed")[metric].mean().values
+
+
+def summarize(rl: dict, heur: pd.DataFrame):
+    """rl: name -> frame with train_seed; heur: frame with method column (deterministic)."""
+    rows = []
+    for m in ORDER:
+        if m in rl:
+            df = rl[m]
+            row = {"method": m, "n_seeds": df.train_seed.nunique()}
+            for k in METRICS:
+                v = per_seed(df, k)
+                lo, hi = boot_ci(v)
+                row.update({k: v.mean(), f"{k}_sd": v.std(ddof=1), f"{k}_lo": lo, f"{k}_hi": hi})
+        elif m in set(heur.method):
+            df = heur[heur.method == m]
+            row = {"method": m, "n_seeds": 0}
+            for k in METRICS:
+                v = df[k].values
+                lo, hi = boot_ci(v)
+                row.update({k: v.mean(), f"{k}_sd": v.std(ddof=1), f"{k}_lo": lo, f"{k}_hi": hi})
+        else:
+            continue
+        rows.append(row)
+    return pd.DataFrame(rows)
+
+
+def holm(p):
+    p = np.asarray(p)
+    o = np.argsort(p)
+    adj = np.empty_like(p)
+    run = 0.0
+    for rank, i in enumerate(o):
+        run = max(run, (len(p) - rank) * p[i])
+        adj[i] = min(1.0, run)
+    return adj
+
+
+def paired_tests(rl_df, heur, metric="return", against=None):
+    """Episode-level paired comparison (common random numbers): RL averaged over training seeds vs each heuristic."""
+    rl_ep = rl_df.groupby("seed")[metric].mean()
+    out = []
+    for h in against or HEUR:
+        hv = heur[heur.method == h].set_index("seed")[metric].reindex(rl_ep.index)
+        d = rl_ep.values - hv.values
+        w = stats.wilcoxon(rl_ep.values, hv.values, zero_method="wilcox")
+        nz = d[d != 0]
+        ranks = stats.rankdata(np.abs(nz))
+        rbc = (ranks[nz > 0].sum() - ranks[nz < 0].sum()) / ranks.sum() if len(nz) else 0.0
+        seed_means = per_seed(rl_df, metric)
+        t = stats.ttest_1samp(seed_means, hv.values.mean())
+        lo, hi = boot_ci(d)
+        out.append({"baseline": h, "mean_diff": d.mean(), "diff_lo": lo, "diff_hi": hi,
+                    "p_wilcoxon": w.pvalue, "rank_biserial": rbc, "win_rate": float((d > 0).mean()),
+                    "p_seed_t": t.pvalue, "seeds_better": int((seed_means > hv.values.mean()).sum())})
+    df = pd.DataFrame(out)
+    df["p_holm"] = holm(df.p_wilcoxon.values)
+    return df
+
+
+def fmt_p(p):
+    return r"$<10^{-4}$" if p < 1e-4 else f"{p:.4f}"
+
+
+# ------------------------------------------------------------------ analyses
+def main_results(recs):
+    rl = {m: test_frame(recs, m) for m in ("DQN", "AA-DQN")}
+    heur = heur_frame("full")
+    s = summarize(rl, heur)
+    s.to_csv(SUM / "main_summary.csv", index=False)
+    tests = {k: paired_tests(rl["AA-DQN"], heur, k) for k in ("return", "on_time_rate", "mean_fatigue")}
+    tests["return_vs_DQN"] = paired_tests(rl["AA-DQN"], pd.concat([rl["DQN"].groupby("seed").mean(numeric_only=True)
+                                                                   .reset_index().assign(method="DQN")]),
+                                          "return", against=["DQN"])
+    for k, v in tests.items():
+        v.to_csv(SUM / f"tests_{k}.csv", index=False)
+
+    lines = [r"\begin{tabular}{lcccccc}", r"\toprule",
+             r"Method & Return & On-time rate & Weighted on-time & Mean attention & Mean fatigue & Break share \\",
+             r"\midrule"]
+    best = {k: (s[k].max() if k not in ("mean_fatigue",) else s[k].min()) for k in METRICS}
+    for _, r in s.iterrows():
+        cells = []
+        for k, d in (("return", 2), ("on_time_rate", 3), ("weighted_on_time", 3), ("mean_attention", 3),
+                     ("mean_fatigue", 3), ("break_frac", 3)):
+            v = f"{r[k]:.{d}f} $\\pm$ {r[k + '_sd']:.{d}f}"
+            if k in ("return", "on_time_rate", "weighted_on_time") and np.isclose(r[k], best[k]):
+                v = r"\textbf{" + v + "}"
+            cells.append(v)
+        name = r["method"] + (r" (ours)" if r["method"] == "AA-DQN" else "")
+        if r["method"] == "DQN":
+            lines.append(r"\midrule")
+        lines.append(name + " & " + " & ".join(cells) + r" \\")
+    lines += [r"\bottomrule", r"\end{tabular}"]
+    (TAB / "main_results.tex").write_text("\n".join(lines))
+
+    t = tests["return"].merge(tests["on_time_rate"], on="baseline", suffixes=("_r", "_o"))
+    lines = [r"\begin{tabular}{lcccccc}", r"\toprule",
+             r" & \multicolumn{3}{c}{Episode return} & \multicolumn{3}{c}{On-time completion rate} \\",
+             r"\cmidrule(lr){2-4}\cmidrule(lr){5-7}",
+             r"AA-DQN vs. & $\Delta$ [95\% CI] & $r_{rb}$ & $p_{\mathrm{Holm}}$ & $\Delta$ [95\% CI] & $r_{rb}$ & $p_{\mathrm{Holm}}$ \\",
+             r"\midrule"]
+    for _, r in t.iterrows():
+        lines.append(f"{r.baseline} & {r.mean_diff_r:+.2f} [{r.diff_lo_r:+.2f}, {r.diff_hi_r:+.2f}] & {r.rank_biserial_r:.2f} & "
+                     f"{fmt_p(r.p_holm_r)} & {r.mean_diff_o:+.3f} [{r.diff_lo_o:+.3f}, {r.diff_hi_o:+.3f}] & "
+                     f"{r.rank_biserial_o:.2f} & {fmt_p(r.p_holm_o)}" + r" \\")
+    lines += [r"\bottomrule", r"\end{tabular}"]
+    (TAB / "stat_tests.tex").write_text("\n".join(lines))
+    return rl, heur, s, tests
+
+
+def fig_main(s):
+    fig, axes = plt.subplots(1, 3, figsize=(W2, 2.5), sharey=True)
+    ylab = list(s.method)
+    y = np.arange(len(ylab))
+    for ax, (k, lab) in zip(axes, (("return", "Episode return"), ("on_time_rate", "On-time completion rate"),
+                                   ("mean_fatigue", "Mean fatigue (lower is better)"))):
+        for i, r in s.iterrows():
+            m = r.method
+            ax.errorbar(r[k], i, xerr=[[r[k] - r[k + "_lo"]], [r[k + "_hi"] - r[k]]], fmt=MK[m], color=C[m],
+                        ms=5 if m != "AA-DQN" else 6.5, capsize=2, lw=1.2, mec=C[m])
+        ax.set_xlabel(lab)
+        ax.grid(axis="y", visible=False)
+    axes[0].set_yticks(y, [m + (" (ours)" if m == "AA-DQN" else "") for m in ylab])
+    best_h = s[s.method.isin(HEUR)]["return"].max()
+    axes[0].axvline(best_h, color=INK2, lw=0.6, ls=":")
+    fig.tight_layout(w_pad=1.0)
+    save(fig, "fig_main_comparison")
+
+
+def fig_curves(recs, heur):
+    fig, axes = plt.subplots(1, 2, figsize=(W2, 2.4))
+    for name in ("DQN", "AA-DQN"):
+        cur = [pd.DataFrame(r["curve"]) for r in recs if r["name"] == name]
+        if not cur:
+            continue
+        ep = cur[0].episode.values
+        for ax, k in zip(axes, ("return", "on_time_rate")):
+            M = np.stack([c[k].values for c in cur])
+            mu = M.mean(0)
+            se = M.std(0, ddof=1) / np.sqrt(len(M))
+            ax.plot(ep, mu, color=C[name], label=name + (" (ours)" if name == "AA-DQN" else ""))
+            ax.fill_between(ep, mu - 1.96 * se, mu + 1.96 * se, color=C[name], alpha=0.18, lw=0)
+    for ax, k, lab in zip(axes, ("return", "on_time_rate"), ("Validation return", "Validation on-time rate")):
+        for h, ls in (("Cog-Heuristic", "--"), ("EDF-Threshold", ":"), ("EDF", "-.")):
+            v = heur[heur.method == h][k].mean()
+            ax.axhline(v, color=C[h], lw=1.0, ls=ls)
+            ax.text(ax.get_xlim()[1] if False else 3000, v, " " + h, color=INK2, fontsize=6.5, va="center", ha="left")
+        ax.set_xlabel("Training episode (simulated workdays)")
+        ax.set_ylabel(lab)
+        ax.set_xlim(0, 3000)
+    axes[0].legend(loc="lower right")
+    fig.tight_layout(w_pad=4)
+    save(fig, "fig_learning_curves")
+
+
+def fig_td(recs):
+    fig, axes = plt.subplots(1, 2, figsize=(W2, 2.2))
+    for name in ("DQN", "AA-DQN"):
+        logs = [pd.DataFrame(r["train_log"]) for r in recs if r["name"] == name]
+        if not logs:
+            continue
+        L = np.stack([l.td_loss.rolling(50, min_periods=1).mean().values for l in logs])
+        R = np.stack([l["return"].rolling(50, min_periods=1).mean().values for l in logs])
+        x = np.arange(L.shape[1]) + 1
+        for ax, M in zip(axes, (R, L)):
+            mu, sd = np.nanmean(M, 0), np.nanstd(M, 0)
+            ax.plot(x, mu, color=C[name], label=name)
+            ax.fill_between(x, mu - sd, mu + sd, color=C[name], alpha=0.15, lw=0)
+    axes[0].set_ylabel("Training return (50-ep. mean)")
+    axes[1].set_ylabel("TD loss (Huber, 50-ep. mean)")
+    axes[1].set_yscale("log")
+    for ax in axes:
+        ax.set_xlabel("Training episode")
+    axes[0].legend()
+    fig.tight_layout(w_pad=3)
+    save(fig, "fig_training_dynamics")
+
+
+ABL = [("full", "Full model"), ("no_obs_noise", "No observation noise"), ("no_circadian", "No circadian process"),
+       ("task_reward_only", "Task-only reward"), ("no_cognition", "Static capacity (no cognition)")]
+
+
+def ablations(recs):
+    rows, tex = [], []
+    for v, lab in ABL:
+        name = "AA-DQN" if v == "full" else f"AA-DQN@{v}"
+        rl = test_frame(recs, name)
+        if rl.empty or not (RES / "heuristics" / f"{v}.csv").exists():
+            continue
+        heur = heur_frame(v)
+        means = heur.groupby("method")[["return", "on_time_rate", "mean_fatigue"]].mean()
+        best = means["return"].idxmax()
+        best_o = means["on_time_rate"].idxmax()
+        t = paired_tests(rl, heur, "return", against=[best]).iloc[0]
+        to = paired_tests(rl, heur, "on_time_rate", against=[best_o]).iloc[0]
+        rs = per_seed(rl, "return")
+        os_ = per_seed(rl, "on_time_rate")
+        fs = per_seed(rl, "mean_fatigue")
+        rows.append(dict(variant=v, label=lab, rl_return=rs.mean(), rl_return_sd=rs.std(ddof=1), rl_on_time=os_.mean(),
+                         rl_fatigue=fs.mean(), best_heur=best, best_heur_return=means.loc[best, "return"],
+                         best_heur_on=best_o, best_heur_on_time=means.loc[best_o, "on_time_rate"],
+                         edf_return=means.loc["EDF", "return"], edf_on_time=means.loc["EDF", "on_time_rate"],
+                         diff=t.mean_diff, diff_lo=t.diff_lo, diff_hi=t.diff_hi, p=t.p_wilcoxon,
+                         diff_o=to.mean_diff, diff_o_lo=to.diff_lo, diff_o_hi=to.diff_hi, p_o=to.p_wilcoxon))
+    df = pd.DataFrame(rows)
+    df.to_csv(SUM / "ablations.csv", index=False)
+    lines = [r"\begin{tabular}{lcccccc}", r"\toprule",
+             r"Environment variant & AA-DQN return & Best heuristic (return) & $\Delta$ return [95\% CI] & AA-DQN on-time & Best heuristic (on-time) & $\Delta$ on-time [95\% CI] \\",
+             r"\midrule"]
+    for _, r in df.iterrows():
+        lines.append(f"{r.label} & {r.rl_return:.2f} $\\pm$ {r.rl_return_sd:.2f} & {r.best_heur} ({r.best_heur_return:.2f}) & "
+                     f"{r['diff']:+.2f} [{r.diff_lo:+.2f}, {r.diff_hi:+.2f}] & {r.rl_on_time:.3f} & "
+                     f"{r.best_heur_on} ({r.best_heur_on_time:.3f}) & {r.diff_o:+.3f} [{r.diff_o_lo:+.3f}, {r.diff_o_hi:+.3f}]" + r" \\")
+    lines += [r"\bottomrule", r"\end{tabular}"]
+    (TAB / "ablations.tex").write_text("\n".join(lines))
+
+    fig, axes = plt.subplots(1, 2, figsize=(W2, 2.1), sharey=True)
+    y = np.arange(len(df))[::-1]
+    for ax, (k, lo, hi, lab) in zip(axes, (("diff", "diff_lo", "diff_hi", r"$\Delta$ return vs. best heuristic"),
+                                           ("diff_o", "diff_o_lo", "diff_o_hi", r"$\Delta$ on-time rate vs. best heuristic"))):
+        ax.axvline(0, color=INK2, lw=0.8)
+        ax.errorbar(df[k], y, xerr=[df[k] - df[lo], df[hi] - df[k]], fmt="o", color=C["AA-DQN"], capsize=2.5, ms=5)
+        ax.set_xlabel(lab)
+        ax.grid(axis="y", visible=False)
+    axes[0].set_yticks(y, df.label)
+    fig.tight_layout(w_pad=1.5)
+    save(fig, "fig_ablations")
+    return df
+
+
+def robustness():
+    f = RES / "robustness.csv"
+    if not f.exists():
+        return None
+    df = pd.read_csv(f)
+    agg = df.groupby(["condition", "method", "train_seed"])[["return", "on_time_rate", "mean_fatigue"]].mean().reset_index()
+    out = agg.groupby(["condition", "method"]).agg(ret=("return", "mean"), ret_sd=("return", "std"),
+                                                   on=("on_time_rate", "mean"), fat=("mean_fatigue", "mean")).reset_index()
+    out.to_csv(SUM / "robustness.csv", index=False)
+    meths = ["AA-DQN", "DQN", "Cog-Heuristic", "EDF-Threshold", "EDF"]
+    fig, axes = plt.subplots(1, 3, figsize=(W2, 2.4), gridspec_kw={"width_ratios": [1.3, 1, 1]})
+    sig = [0.0, 0.05, 0.1, 0.2, 0.3]
+    ax = axes[0]
+    for m in meths:
+        vals, lo, hi = [], [], []
+        for s_ in sig:
+            sub = agg[(agg.condition == f"noise{s_}") & (agg.method == m)]
+            if sub.empty:
+                vals.append(np.nan); lo.append(np.nan); hi.append(np.nan); continue
+            if m in ("AA-DQN", "DQN"):
+                v = sub["return"].values
+                a, b = boot_ci(v)
+            else:
+                v = df[(df.condition == f"noise{s_}") & (df.method == m)]["return"].values
+                a, b = boot_ci(v)
+            vals.append(v.mean()); lo.append(a); hi.append(b)
+        ax.plot(sig, vals, marker=MK[m], color=C[m], ms=4, label=m)
+        ax.fill_between(sig, lo, hi, color=C[m], alpha=0.12, lw=0)
+    ax.axvline(0.1, color=INK2, lw=0.6, ls=":")
+    ax.set_xlabel(r"Observation-noise s.d. $\sigma_o$ at test time")
+    ax.set_ylabel("Episode return")
+    ax.legend(loc="lower left", ncol=1, fontsize=6.3)
+    for ax, conds, labs, title in ((axes[1], ["profile_resilient", "noise0.1", "profile_fatigue_prone"],
+                                    ["Resilient", "Nominal", "Fatigue-prone"], "Worker profile"),
+                                   (axes[2], ["tasks8", "noise0.1", "tasks16"], ["8 tasks", "12 tasks", "16 tasks"],
+                                    "Daily workload")):
+        x = np.arange(len(conds))
+        width = 0.15
+        for j, m in enumerate(meths):
+            vals = [out[(out.condition == c) & (out.method == m)].ret.values for c in conds]
+            vals = [v[0] if len(v) else np.nan for v in vals]
+            ax.plot(x + (j - 2) * width, vals, MK[m], color=C[m], ms=4.5, ls="none")
+        ax.set_xticks(x, labs)
+        ax.set_title(title, color=INK)
+        ax.grid(axis="x", visible=False)
+    axes[1].set_ylabel("Episode return")
+    fig.tight_layout(w_pad=1.2)
+    save(fig, "fig_robustness")
+
+    conds = [("noise0.0", r"$\sigma_o=0$"), ("noise0.1", r"Nominal ($\sigma_o=0.1$)"), ("noise0.2", r"$\sigma_o=0.2$"),
+             ("noise0.3", r"$\sigma_o=0.3$"), ("profile_resilient", "Resilient worker"),
+             ("profile_fatigue_prone", "Fatigue-prone worker"), ("tasks8", "8 tasks/day"), ("tasks16", "16 tasks/day")]
+    lines = [r"\begin{tabular}{l" + "c" * len(meths) + "}", r"\toprule",
+             "Test condition & " + " & ".join(meths) + r" \\", r"\midrule"]
+    for c, lab in conds:
+        vals = [out[(out.condition == c) & (out.method == m)] for m in meths]
+        nums = [v.ret.values[0] if len(v) else np.nan for v in vals]
+        bi = int(np.nanargmax(nums))
+        cells = []
+        for i, (v, n) in enumerate(zip(vals, nums)):
+            cell = f"{n:.2f} / {v.on.values[0]:.3f}"
+            cells.append(r"\textbf{" + cell + "}" if i == bi else cell)
+        lines.append(lab + " & " + " & ".join(cells) + r" \\")
+    lines += [r"\bottomrule", r"\end{tabular}"]
+    (TAB / "robustness.tex").write_text("\n".join(lines))
+    return out
+
+
+def pareto(recs):
+    pts = []
+    for lam, name, var in ((0.0, "AA-DQN@task_reward_only", "task_reward_only"), (0.05, "AA-DQN@lam0.05", "lam0.05"),
+                           (0.1, "AA-DQN", "full"), (0.2, "AA-DQN@lam0.2", "lam0.2"), (0.4, "AA-DQN@lam0.4", "lam0.4")):
+        rl = test_frame(recs, name)
+        if rl.empty:
+            continue
+        rl = rl[rl.train_seed < 5]
+        o, f = per_seed(rl, "on_time_rate"), per_seed(rl, "mean_fatigue")
+        pts.append(dict(lam=lam, on=o.mean(), on_sd=o.std(ddof=1), fat=f.mean(), fat_sd=f.std(ddof=1),
+                        hf=per_seed(rl, "high_fatigue_frac").mean(), brk=per_seed(rl, "break_frac").mean()))
+    p = pd.DataFrame(pts)
+    p.to_csv(SUM / "pareto.csv", index=False)
+    if p.empty:
+        return p
+    heur = heur_frame("full").groupby("method")[["on_time_rate", "mean_fatigue"]].mean()
+    fig, ax = plt.subplots(figsize=(W1, 2.6))
+    ax.errorbar(p.fat, p.on, xerr=p.fat_sd, yerr=p.on_sd, color=C["AA-DQN"], marker="o", ms=4.5, capsize=2, lw=1.4,
+                label=r"AA-DQN, $\lambda\in\{0,0.05,0.1,0.2,0.4\}$")
+    for _, r in p.iterrows():
+        ax.annotate(rf"$\lambda$={r.lam:g}", (r.fat, r.on), textcoords="offset points", xytext=(4, 4), fontsize=6.3,
+                    color=INK2)
+    for h in ["EDF", "SPT", "EDF-Periodic", "EDF-Threshold", "Cog-Heuristic"]:
+        ax.plot(heur.loc[h, "mean_fatigue"], heur.loc[h, "on_time_rate"], MK[h], color=C[h], ms=5.5, label=h)
+    ax.set_xlabel("Mean fatigue over the workday")
+    ax.set_ylabel("On-time completion rate")
+    ax.legend(fontsize=6, loc="lower right")
+    fig.tight_layout()
+    save(fig, "fig_pareto")
+    lines = [r"\begin{tabular}{cccccc}", r"\toprule",
+             r"$\lambda$ ($\mu=\lambda/2$) & On-time rate & Mean fatigue & High-fatigue exposure & Break share \\",
+             r"\midrule"]
+    for _, r in p.iterrows():
+        lines.append(f"{r.lam:g} & {r.on:.3f} $\\pm$ {r.on_sd:.3f} & {r.fat:.3f} $\\pm$ {r.fat_sd:.3f} & {r.hf:.3f} & {r.brk:.3f}" + r" \\")
+    lines += [r"\bottomrule", r"\end{tabular}"]
+    (TAB / "pareto.tex").write_text("\n".join(lines))
+    return p
+
+
+def component(recs):
+    names = [("AA-DQN", "AA-DQN (history $k{=}4$ + Double + Dueling)"), ("AA-DQN-noHist", "-- without history ($k{=}1$)"),
+             ("AA-DQN-noDouble", "-- without Double Q-learning"), ("AA-DQN-noDueling", "-- without dueling head"),
+             ("AA-DQN-k2", "history $k{=}2$"), ("AA-DQN-k8", "history $k{=}8$"),
+             ("AA-DQN-lr1e-4", r"learning rate $10^{-4}$"), ("AA-DQN-lr1e-3", r"learning rate $10^{-3}$"),
+             ("AA-DQN-GRU", "GRU encoder over $k{=}8$ history"), ("DQN", "Vanilla DQN ($k{=}1$, no Double/Dueling)")]
+    rows = []
+    for n, lab in names:
+        rl = test_frame(recs, n)
+        if rl.empty:
+            continue
+        r_, o_ = per_seed(rl, "return"), per_seed(rl, "on_time_rate")
+        tt = [r["train_time_s"] for r in recs if r["name"] == n]
+        rows.append(dict(name=n, label=lab, seeds=len(r_), ret=r_.mean(), ret_sd=r_.std(ddof=1), on=o_.mean(),
+                         on_sd=o_.std(ddof=1), time=np.mean(tt)))
+    df = pd.DataFrame(rows)
+    df.to_csv(SUM / "component.csv", index=False)
+    lines = [r"\begin{tabular}{lcccc}", r"\toprule",
+             r"Configuration & Seeds & Return & On-time rate & Train time (s) \\", r"\midrule"]
+    for _, r in df.iterrows():
+        lines.append(f"{r.label} & {r.seeds} & {r.ret:.2f} $\\pm$ {r.ret_sd:.2f} & {r.on:.3f} $\\pm$ {r.on_sd:.3f} & {r.time:.0f}" + r" \\")
+    lines += [r"\bottomrule", r"\end{tabular}"]
+    (TAB / "component.tex").write_text("\n".join(lines))
+    return df
+
+
+def behaviour():
+    f = RES / "traces.npz"
+    if not f.exists():
+        return None
+    z = np.load(f)
+    hours = 9 + np.arange(48) / 6
+    meths = [("AA-DQN", "AA_DQN"), ("Cog-Heuristic", "Cog_Heuristic"), ("EDF-Threshold", "EDF_Threshold"), ("EDF", "EDF")]
+    fig, axes = plt.subplots(2, 4, figsize=(W2, 3.6), sharex=True)
+    for j, (m, key) in enumerate(meths):
+        act = z[f"{key}__act"]
+        ax = axes[0, j]
+        p = np.stack([(act == a).mean(0) for a in (1, 0, 2)])
+        ax.stackplot(hours, p, colors=["#184f95", "#86b6ef", "#e4e3df"], labels=["Hard task", "Easy task", "Break"],
+                     edgecolor="white", linewidth=0.3)
+        ax.set_title(m + (" (ours)" if m == "AA-DQN" else ""))
+        ax.set_ylim(0, 1)
+        ax.grid(False)
+        if j == 0:
+            ax.set_ylabel("Action share")
+        ax2 = axes[1, j]
+        A, Fm = z[f"{key}__A"], z[f"{key}__F"]
+        for M, col, lab in ((A, C["AA-DQN"], "Attention $A_t$"), (Fm, C["DQN"], "Fatigue $F_t$")):
+            mu = M.mean(0)
+            q1, q3 = np.percentile(M, [25, 75], axis=0)
+            ax2.plot(hours, mu, color=col, label=lab)
+            ax2.fill_between(hours, q1, q3, color=col, alpha=0.18, lw=0)
+        ax2.set_ylim(0, 1)
+        ax2.set_xlabel("Clock time (h)")
+        if j == 0:
+            ax2.set_ylabel("Latent state")
+    axes[0, 0].legend(loc="lower left", fontsize=6, framealpha=0.85, frameon=True)
+    axes[1, 0].legend(loc="lower left", fontsize=6)
+    fig.tight_layout(h_pad=0.6, w_pad=0.6)
+    save(fig, "fig_behaviour")
+
+    # timing statistics
+    rows = []
+    for m, key in meths + [("DQN", "DQN")]:
+        if f"{key}__act" not in z:
+            continue
+        act, A, Fm = z[f"{key}__act"], z[f"{key}__A"], z[f"{key}__F"]
+        hard = act == 1
+        morning = hours < 12
+        prev_F = np.concatenate([np.full((len(Fm), 1), np.nan), Fm[:, :-1]], axis=1)
+        prev_A = np.concatenate([np.full((len(A), 1), np.nan), A[:, :-1]], axis=1)
+        brk = act == 2
+        rows.append(dict(method=m, hard_share_morning=hard[:, morning].mean(), hard_share_afternoon=hard[:, ~morning].mean(),
+                         break_share_dip=brk[:, (hours >= 13) & (hours < 15)].mean(), break_share_other=brk[:, (hours < 13) | (hours >= 15)].mean(),
+                         fatigue_before_break=np.nanmean(prev_F[brk]), attention_before_break=np.nanmean(prev_A[brk]),
+                         attention_at_hard=np.nanmean(prev_A[hard]), end_fatigue=Fm[:, -1].mean()))
+    pd.DataFrame(rows).to_csv(SUM / "behaviour.csv", index=False)
+    return pd.DataFrame(rows)
+
+
+def fig_dynamics():
+    """Illustrate the simulator: circadian term and single-day trajectories under two policies."""
+    from aacs.env import CognitiveSchedulingEnv, circadian, make_cfg
+    from aacs.baselines import EDF, EDFPeriodic, run_policy
+
+    hours = np.linspace(9, 17, 200)
+    fig, axes = plt.subplots(1, 3, figsize=(W2, 2.2))
+    axes[0].plot(hours, circadian(hours), color=INK)
+    axes[0].axhline(0, color=INK2, lw=0.5)
+    axes[0].set_xlabel("Clock time (h)")
+    axes[0].set_ylabel("Circadian modulation $c(h)$")
+    axes[0].set_title("(a) Circadian process")
+    env = CognitiveSchedulingEnv(make_cfg())
+    hh = 9 + np.arange(48) / 6
+    for ax, pol, title in ((axes[1], EDF(), "(b) EDF, no breaks"), (axes[2], EDFPeriodic(4), "(c) EDF with periodic breaks")):
+        _, tr = run_policy(env, pol, [20_000_000], keep_traces=True)
+        tr = tr[0]
+        ax.plot(hh, tr["A"], color=C["AA-DQN"], label="Attention $A_t$")
+        ax.plot(hh, tr["F"], color=C["DQN"], label="Fatigue $F_t$")
+        for t in np.flatnonzero(tr["act"] == 2):
+            ax.axvspan(hh[t] - 1 / 6, hh[t], color="#e4e3df", lw=0)
+        ax.set_ylim(0, 1.02)
+        ax.set_xlabel("Clock time (h)")
+        ax.set_title(title)
+    axes[1].legend(loc="center left", fontsize=6.3)
+    fig.tight_layout(w_pad=1.2)
+    save(fig, "fig_dynamics")
+
+
+def efficiency_surface():
+    from aacs.env import NOMINAL as c
+    A = np.linspace(0, 1, 101)
+    fig, ax = plt.subplots(figsize=(W1, 2.2))
+    for d, ls in ((0.2, "-"), (0.6, "--"), (1.0, ":")):
+        for F, col in ((0.0, C["AA-DQN"]), (0.8, C["DQN"])):
+            ax.plot(A, c.rho0 * A ** (0.5 + d) * (1 - c.kappa * F), color=col, ls=ls, lw=1.2)
+    ax.set_xlabel("Attention $A_t$")
+    ax.set_ylabel(r"Work rate $\rho_t$ (units/slot)")
+    from matplotlib.lines import Line2D
+    h = [Line2D([], [], color=C["AA-DQN"], label="$F_t=0$"), Line2D([], [], color=C["DQN"], label="$F_t=0.8$"),
+         Line2D([], [], color=INK2, ls="-", label="$d=0.2$"), Line2D([], [], color=INK2, ls="--", label="$d=0.6$"),
+         Line2D([], [], color=INK2, ls=":", label="$d=1.0$")]
+    ax.legend(handles=h, fontsize=6.3, loc="upper left")
+    fig.tight_layout()
+    save(fig, "fig_efficiency")
+
+
+def compute_cost(recs):
+    rows = []
+    for n in ("DQN", "AA-DQN"):
+        rr = [r for r in recs if r["name"] == n]
+        if rr:
+            rows.append(dict(method=n, train_time_s=np.mean([r["train_time_s"] for r in rr]),
+                             train_time_sd=np.std([r["train_time_s"] for r in rr]),
+                             us_per_decision=np.mean([r["eval_us_per_decision"] for r in rr])))
+    pd.DataFrame(rows).to_csv(SUM / "compute.csv", index=False)
+
+
+def main():
+    recs = load_runs()
+    print(len(recs), "runs")
+    fig_dynamics()
+    efficiency_surface()
+    rl, heur, s, tests = main_results(recs)
+    print(s[["method", "return", "return_sd", "on_time_rate", "mean_fatigue", "break_frac"]].to_string())
+    for k, v in tests.items():
+        print(k)
+        print(v.to_string())
+    fig_main(s)
+    fig_curves(recs, heur)
+    fig_td(recs)
+    print(ablations(recs).to_string())
+    r = robustness()
+    if r is not None:
+        print(r.to_string())
+    print(pareto(recs).to_string())
+    print(component(recs).to_string())
+    b = behaviour()
+    if b is not None:
+        print(b.to_string())
+    compute_cost(recs)
+
+
+if __name__ == "__main__":
+    main()

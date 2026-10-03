@@ -1,0 +1,117 @@
+\documentclass[11pt]{article}
+\usepackage[margin=2.2cm]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{newtxtext,newtxmath}
+\usepackage{enumitem,xcolor,titlesec,hyperref}
+\definecolor{acc}{HTML}{2A78D6}
+\titleformat{\section}{\large\bfseries\color{acc}}{}{0pt}{}
+\titleformat{\subsection}{\normalsize\bfseries}{}{0pt}{}
+\setlist{itemsep=2pt,topsep=3pt}
+\newcommand{\resp}[1]{\par\noindent\textbf{Response.} #1\par\medskip}
+\title{Pre-submission peer review of\\``Attention-Aware Task Scheduling via Deep Reinforcement Learning under Partial Observability for Human-Centric Productivity Optimization''\\[4pt]\large Simulated multi-reviewer assessment and point-by-point response}
+\date{}
+\begin{document}
+\maketitle
+
+\noindent\textbf{Purpose.} This document records a structured, adversarial internal review of the \emph{original} 25-page draft (file \texttt{RL\_changedone\_2.pdf}). Four independent reviewer perspectives and a handling editor were simulated, each modelled on the reviewer pool of a Q1 journal in applied AI and industrial engineering. Every concern was then addressed in the revised manuscript. The response to each point states what was changed and where. This document is for the authors' internal use; it is not intended for submission.
+
+\section{Handling editor: summary of the original draft}
+\textbf{Recommendation on the original draft: Reject (desk), with encouragement to resubmit.}
+
+The topic, cognitively aware scheduling under partial observability, is timely and fits the human-centric Industry~5.0 agenda. In its original form, however, the manuscript would not pass editorial screening at a Q1 journal, for four reasons: (i) it contains \emph{no references}; (ii) the numerical results are internally inconsistent across tables and figures; (iii) the experimental design cannot support the central claim, because there are weak baselines only, no seeds, no statistical tests, and evaluation on training episodes; and (iv) the method described (a feed-forward DQN on a single noisy observation) does not match the claimed POMDP treatment. Formatting problems (``Figure X'', ``this thesis'', a blank final page, student registration numbers in the author block) suggest the draft was not proof-read.
+
+\section{Reviewer 1 (deep reinforcement learning methodology)}
+\textbf{Recommendation: Major revision / reject.}
+\begin{enumerate}[label=R1.\arabic*]
+\item \textit{POMDP claim not supported.} Section~3.2 defines noisy observations, but the DQN in Section~4.2 maps a single observation to Q-values. A memoryless policy does not address partial observability and can be arbitrarily suboptimal. Use a belief approximation (history, recurrence) or drop the POMDP claim.
+\resp{The revised method (Section~4.2) feeds a $k$-step observation history to the network, explains why a short history is an approximate sufficient statistic in this problem (persistence of the latent state, so averaging reduces the error, and visible trends), and cites the POMDP literature \cite{astrom1965,kaelbling1998,singh1994,hausknecht2015,ni2022}. The memoryless DQN is retained as a baseline, and a component ablation (Section~6.5) varies $k\in\{1,2,4,8\}$, quantifying the value of memory.}
+\item \textit{Reported numbers are mutually inconsistent.} Table~1 gives a DRL mean reward of 1.32, yet Fig.~2 converges to $\approx$200, Fig.~4 to $\approx$180 (``stabilised'') and $\approx$110 (``unstable''), and the bar chart (``Figure X'') shows $\approx$150 for DRL versus $-55$ and $-25$ for FIFO and EDF, while the table gives $-1.07$ and $-3.89$. These cannot all describe the same experiment.
+\resp{All figures and tables have been regenerated from a single, released code base. Every number in the revision is produced by \texttt{analysis/analyze.py} from the raw per-day results in \texttt{results/}, so tables and figures agree by construction. The original figures were discarded.}
+\item \textit{``Variance reduced by nearly 48\%''} is incorrect: the standard deviation fell from 4.63 to 2.41 (48\%), but the variance fell by 73\%.
+\resp{This statement no longer appears. Dispersion is now reported as standard deviations across seeds and 95\% bootstrap confidence intervals.}
+\item \textit{Evaluation on training episodes with exploration.} ``Mean reward over the final 100 training episodes'' conflates learning with performance, includes $\epsilon$-greedy actions, and uses non-held-out data.
+\resp{Policies are now evaluated greedily on 500 held-out test days, with common random numbers across all methods. Training, validation, tuning and test days come from disjoint seed ranges (Section~5.2).}
+\item \textit{``Gradient stabilisation'' is not a method.} The ``before/after'' comparison in Section~7.1 changes several unspecified factors at once.
+\resp{The vague ``before/after'' narrative was replaced by a controlled comparison: vanilla DQN versus AA-DQN, plus a component ablation that removes history, Double Q-learning and the dueling head one at a time (Section~6.5), and a learning-rate sensitivity study. All hyperparameters are listed in Table~5.}
+\item \textit{Insufficient hyperparameter and architectural detail} (target-update period, exploration-decay constant, loss, network width).
+\resp{Table~5 now lists all hyperparameters, and Algorithm~1 gives the full training procedure.}
+\item \textit{Convergence claims overstated} (``ensures continuous reduction of TD error'').
+\resp{Removed. We now note that convergence is not guaranteed under nonlinear function approximation \cite{tsitsiklis1997} and show empirical learning curves with confidence bands over ten seeds, plus TD-loss curves in the Supplementary Material.}
+\end{enumerate}
+
+\section{Reviewer 2 (human factors and cognitive ergonomics)}
+\textbf{Recommendation: Major revision.}
+\begin{enumerate}[label=R2.\arabic*]
+\item \textit{Cognitive model not grounded in the literature.} The attention and fatigue update rules are presented without references, parameter values or behavioural justification. The circadian term is undefined.
+\resp{Section~3.2 now grounds each component: the homeostatic--circadian decomposition of alertness \cite{borbely1982,akerstedt1997,borbely2016}; the vigilance decrement and resource-control accounts \cite{mackworth1948,warm2008,thomson2015}; break-induced recovery \cite{ariga2011,albulescu2022}; and exponential fatigue accumulation and recovery \cite{jaber2010,jaber2013}. The circadian function is defined explicitly, with a post-lunch dip \cite{monk2005,schmidt2007}. Table~3 lists every parameter with its rationale, and Fig.~1 shows the resulting trajectories.}
+\item \textit{The model is deterministic and the worker is homogeneous.} Real workers differ.
+\resp{Process noise was added to the latent dynamics. Section~6.7 evaluates zero-shot transfer to resilient and fatigue-prone worker profiles ($\pm30\%$ on all rate parameters). The limitations section discusses the need for empirical calibration.}
+\item \textit{Partial observability is not linked to real sensing.}
+\resp{Section~3.3 relates the observation noise to the accuracy of physiological, ocular, behavioural and self-report estimators \cite{charles2019,borghini2014,hogervorst2014,basner2011,hart1988}. A sensitivity analysis over $\sigma_o\in\{0,0.05,0.1,0.2,0.3\}$ is reported.}
+\item \textit{Ethics and worker autonomy are not discussed.} A system that tells people when to rest and what to work on raises issues of surveillance, consent and autonomy.
+\resp{A new subsection (Section~7.3) discusses privacy of physiological data, consent, the advisory (not prescriptive) role of the scheduler, fairness across worker profiles, and safety constraints.}
+\end{enumerate}
+
+\section{Reviewer 3 (operations research and scheduling)}
+\textbf{Recommendation: Reject in current form.}
+\begin{enumerate}[label=R3.\arabic*]
+\item \textit{Straw-man baselines.} FIFO and EDF cannot rest, whereas the DRL agent can. Any break-taking policy would beat them in an environment where breaks restore capacity. The comparison says nothing about the value of \emph{learning}.
+\resp{This was the most important criticism. The revision adds SPT, a random policy, and three \emph{cognition-aware} heuristics that can rest: EDF with periodic breaks, EDF with fatigue/attention thresholds, and an attention-matching rule. All three were grid-tuned on separate tuning days and observe the same noisy signals as the agent (Section~5.1). The headline comparison is now against the \emph{best tuned} heuristic. Results are reported transparently, including the metrics on which the heuristics remain competitive.}
+\item \textit{Action abstraction unclear.} How does EDF operate in an \{easy, hard, break\} action space? Which specific task is executed?
+\resp{Section~3.4 now specifies the dispatch rule (EDF within the selected class, with a fallback to the other class, and idling when the queue is empty). Baselines act directly on individual tasks, so they have at least as much control as the agent.}
+\item \textit{The state lacks deadline information.} A binary completion vector of length $N$ does not encode difficulty or deadlines, so urgency cannot be learned, and the input dimension depends on $N$.
+\resp{The observation (Eq.~6) now contains per-class queue length, remaining work, minimum slack and overdue counts, which is size-invariant and deadline-aware. This enables a zero-shot evaluation with 8 and 16 tasks per day (Section~6.7).}
+\item \textit{The ``no cognition'' ablation is confounded.} Removing cognition also changes the total capacity and the reward scale, so the comparison of rewards across variants is meaningless.
+\resp{The static-capacity variant now fixes attention and fatigue at values whose throughput matches that of break-taking policies in the full model. Each ablation re-tunes the heuristics for its own variant, and we report the \emph{difference} between the agent and the best heuristic within each variant, rather than raw returns across variants.}
+\item \textit{Reward design drives the result.} Because the reward contains attention and fatigue terms that the heuristics do not optimise, the DRL advantage may be an artefact of the objective.
+\resp{We (i) report reward-independent operational metrics (on-time rate, weighted on-time rate, completion), (ii) train an agent with a task-only reward ($\lambda=\mu=0$), and (iii) trace the productivity--fatigue Pareto front over $\lambda$ (Section~6.6). The heuristics are tuned on the same reward as the agent.}
+\end{enumerate}
+
+\section{Reviewer 4 (statistics, reproducibility and presentation)}
+\textbf{Recommendation: Major revision.}
+\begin{enumerate}[label=R4.\arabic*]
+\item \textit{No seeds, confidence intervals or hypothesis tests.}
+\resp{The revision uses ten training seeds per main configuration, 95\% bootstrap confidence intervals, paired Wilcoxon signed-rank tests on 500 common-random-number test days, rank-biserial effect sizes and Holm correction \cite{henderson2018,agarwal2021,wilcoxon1945,holm1979} (Section~5.4, Table~7).}
+\item \textit{No references; related work is generic.}
+\resp{The revision cites more than 150 verified references, each checked against its DOI. The related-work section is organised into five streams and ends with a positioning table (Table~1).}
+\item \textit{Code and data not available.}
+\resp{The full code, configurations, raw results and figure scripts are released. A single command reproduces every table and figure.}
+\item \textit{Presentation issues:} ``this thesis''; ``Figure X''; inconsistent figure numbering; duplicated text in Section~1.1; reuse of $\gamma$ for both the circadian scale and the discount factor and of $\eta$ for both fatigue recovery and the learning rate; ``3000--5000 episodes'' without a definite value; a blank final page; student IDs in the author block.
+\resp{All corrected. Notation is collected in Table~2 without symbol clashes ($\gamma_{\mathrm{RL}}$ for the discount, $\eta_{\mathrm{lr}}$ for the learning rate). The training budget is fixed at 3000 episodes, and the author block follows the journal's format.}
+\item \textit{Inconsistent ablation narrative.} Removing circadian dynamics is said to make attention ``artificially high'' yet reduces reward, which is contradictory under a reward that rewards attention.
+\resp{The ablation was redesigned (Section~6.4) and is interpreted only through within-variant comparisons with confidence intervals.}
+\end{enumerate}
+
+\section{Second-round assessment of the revised manuscript}
+The four reviewer perspectives were applied again to the revised manuscript. The remaining points, which are disclosed as limitations, are: (a) the simulator is behaviourally plausible but not calibrated to individual human data; (b) the cognitive state estimator is abstracted as additive noise rather than a specific sensor pipeline; and (c) a single worker is modelled. These are scope limitations appropriate for a simulation study and are stated explicitly in Section~7.4, together with a concrete plan for empirical validation. \textbf{Simulated recommendation on the revised manuscript: minor revision.}
+
+\begin{thebibliography}{99}\small
+\bibitem{astrom1965} K.J. {\AA}str{\"o}m, J. Math. Anal. Appl. 10 (1965) 174--205.
+\bibitem{kaelbling1998} L.P. Kaelbling, M.L. Littman, A.R. Cassandra, Artif. Intell. 101 (1998) 99--134.
+\bibitem{singh1994} S.P. Singh, T. Jaakkola, M.I. Jordan, Proc. ICML (1994) 284--292.
+\bibitem{hausknecht2015} M. Hausknecht, P. Stone, AAAI Fall Symp. (2015).
+\bibitem{ni2022} T. Ni, B. Eysenbach, R. Salakhutdinov, Proc. ICML (2022).
+\bibitem{tsitsiklis1997} J.N. Tsitsiklis, B. Van Roy, IEEE Trans. Autom. Control 42 (1997) 674--690.
+\bibitem{borbely1982} A.A. Borb{\'e}ly, Hum. Neurobiol. 1 (1982) 195--204.
+\bibitem{akerstedt1997} T. {\AA}kerstedt, S. Folkard, Chronobiol. Int. 14 (1997) 115--123.
+\bibitem{borbely2016} A.A. Borb{\'e}ly et al., J. Sleep Res. 25 (2016) 131--143.
+\bibitem{mackworth1948} N.H. Mackworth, Q. J. Exp. Psychol. 1 (1948) 6--21.
+\bibitem{warm2008} J.S. Warm, R. Parasuraman, G. Matthews, Hum. Factors 50 (2008) 433--441.
+\bibitem{thomson2015} D.R. Thomson, D. Besner, D. Smilek, Perspect. Psychol. Sci. 10 (2015) 82--96.
+\bibitem{ariga2011} A. Ariga, A. Lleras, Cognition 118 (2011) 439--443.
+\bibitem{albulescu2022} P. Albulescu et al., PLOS ONE 17 (2022) e0272460.
+\bibitem{jaber2010} M.Y. Jaber, W.P. Neumann, Comput. Ind. Eng. 59 (2010) 75--84.
+\bibitem{jaber2013} M.Y. Jaber, Z.S. Givi, W.P. Neumann, Appl. Math. Model. 37 (2013) 7287--7299.
+\bibitem{monk2005} T.H. Monk, Clin. Sports Med. 24 (2005) e15--e23.
+\bibitem{schmidt2007} C. Schmidt et al., Cogn. Neuropsychol. 24 (2007) 755--789.
+\bibitem{charles2019} R.L. Charles, J. Nixon, Appl. Ergon. 74 (2019) 221--232.
+\bibitem{borghini2014} G. Borghini et al., Neurosci. Biobehav. Rev. 44 (2014) 58--75.
+\bibitem{hogervorst2014} M.A. Hogervorst, A.-M. Brouwer, J.B.F. van Erp, Front. Neurosci. 8 (2014) 322.
+\bibitem{basner2011} M. Basner, D.F. Dinges, Sleep 34 (2011) 581--591.
+\bibitem{hart1988} S.G. Hart, L.E. Staveland, Adv. Psychol. 52 (1988) 139--183.
+\bibitem{henderson2018} P. Henderson et al., Proc. AAAI 32 (2018).
+\bibitem{agarwal2021} R. Agarwal et al., NeurIPS 34 (2021) 29304--29320.
+\bibitem{wilcoxon1945} F. Wilcoxon, Biometrics Bull. 1 (1945) 80--83.
+\bibitem{holm1979} S. Holm, Scand. J. Stat. 6 (1979) 65--70.
+\end{thebibliography}
+\end{document}

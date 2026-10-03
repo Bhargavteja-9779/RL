@@ -1,0 +1,52 @@
+\section{Experimental design}\label{sec:setup}
+
+\subsection{Baselines}\label{sec:baselines}
+We compare AA-DQN against the vanilla DQN and seven rule-based schedulers, which span classical dispatching and hand-crafted cognition-aware policies. Baselines dispatch individual tasks directly, so they have at least as much control over task choice as the RL agents.
+\begin{itemize}
+  \item \textbf{Random}: uniform choice among \textsc{easy}, \textsc{hard} and \textsc{break}.
+  \item \textbf{FIFO}: the available task that arrived first; never rests.
+  \item \textbf{EDF}: the available task with the earliest deadline; never rests \cite{jackson1955,liu1973}.
+  \item \textbf{SPT}: the available task with the least remaining work; never rests \cite{smith1956}.
+  \item \textbf{EDF-Periodic}: EDF with one break after every $p$ work slots, a fixed work--rest cycle in the spirit of ergonomic rest-allowance guidance \cite{konz1998}.
+  \item \textbf{EDF-Threshold}: EDF that rests whenever the \emph{observed} fatigue exceeds $\tau_F$ or the observed attention falls below $\tau_A$. This is a reactive, state-aware rule.
+  \item \textbf{Cog-Heuristic}: rests on the same threshold rule and otherwise schedules a hard task only when observed attention is at least $\tau_H$, an easy task otherwise (EDF within class). This hand-crafted rule encodes the intuition that the learned policy might discover.
+\end{itemize}
+The parameters of the last three heuristics were selected by exhaustive grid search, maximising mean return on 300 \emph{tuning} days that are disjoint from the training, validation and test days. The grids were $p\in\{2,3,4,5,6,8,10\}$; $\tau_F\in\{0.3,\dots,0.9,1.01\}$ and $\tau_A\in\{0,0.2,\dots,0.7\}$ (56 combinations); and, for Cog-Heuristic, $\tau_F\times\tau_A\times\tau_H$ with $\tau_H\in\{0.4,\dots,0.9\}$ (252 combinations). The heuristics observe exactly the same noisy signals as the agents. The selected parameters are reported in Supplementary Table~S2. Tuning is repeated separately for every environment variant, so that each ablation compares the agent with the best heuristic \emph{for that variant}.
+
+\subsection{Protocol}
+Each RL configuration was trained with ten independent seeds (five for the reward-weight sweep and the component ablation, three for hyperparameter sensitivity) for 3000 episodes ($1.44\times10^5$ decisions). Four disjoint sets of days were used: training days (generated from the training seed), 100 validation days for checkpoint selection, 300 tuning days for heuristic parameters, and 500 test days used only once, for the final evaluation. All methods are evaluated greedily on the \emph{same} 500 test days with \emph{common random numbers}. Each test day fixes the task set, the initial cognitive state and the sequences of process and observation noise, so differences between methods are paired and not confounded by sampling variation. In total, 102 agents were trained and $\sim\!1.5\times10^5$ test days were simulated.
+
+\subsection{Metrics}
+Besides the return (Eq.~\eqref{eq:reward}), which depends on the reward weights, we report reward-independent operational metrics: the \emph{on-time rate} (fraction of the day's tasks completed by their deadline); the \emph{difficulty-weighted on-time rate} $\sum_i d_i\mathbb 1(\text{on time})/\sum_i d_i$; the \emph{completion rate} (completed at any time); the mean \emph{true} attention $\bar A$ and fatigue $\bar F$ over the day; the \emph{high-fatigue exposure}, i.e.\ the fraction of slots with $F_t>0.7$; and the \emph{break share}.
+
+\subsection{Statistical analysis}
+Following recommendations for reliable RL evaluation \cite{henderson2018,agarwal2021}, we treat the training seed as the unit of replication for learned policies. For each seed, metrics are averaged over the 500 test days. We report the mean and standard deviation across seeds, and 95\% bootstrap confidence intervals \cite{efron1979} with 5000 resamples. Deterministic heuristics are summarised across test days. To compare AA-DQN with each baseline, we average AA-DQN over seeds for each test day and apply the two-sided Wilcoxon signed-rank test \cite{wilcoxon1945} to the 500 paired day-level differences. We report the matched-pairs rank-biserial correlation $r_{rb}$ as effect size, the win rate, and Holm-adjusted $p$-values \cite{holm1979} over the seven baseline comparisons. As a more conservative seed-level check, we also report how many of the ten seeds outperform each baseline.
+
+\subsection{Implementation}
+The simulator, agents and baselines are implemented in Python with NumPy and PyTorch \cite{paszke2019}. Table~\ref{tab:hparams} lists the hyperparameters. Training used one CPU thread per run. The code, configuration files, raw per-day results and analysis scripts are released (see Data availability) so that every number and figure in this paper can be regenerated with a single command.
+
+\begin{table}[t]
+\centering
+\caption{Agent hyperparameters (shared by DQN and AA-DQN unless stated).}
+\label{tab:hparams}
+\small
+\begin{tabular}{lll}
+\toprule
+Hyperparameter & DQN & AA-DQN \\
+\midrule
+History length $k$ & 1 & 4 \\
+Target & max (standard) & Double DQN \\
+Output head & linear & dueling ($V$ + advantage) \\
+Hidden layers & \multicolumn{2}{c}{2 $\times$ 128, ReLU} \\
+Optimiser, learning rate & \multicolumn{2}{c}{Adam, $5\times10^{-4}$} \\
+Discount $\gamma_{\mathrm{RL}}$ & \multicolumn{2}{c}{0.99} \\
+Replay capacity, warm-up & \multicolumn{2}{c}{50\,000, 1\,000 transitions} \\
+Minibatch size & \multicolumn{2}{c}{64} \\
+Target update period $C$ & \multicolumn{2}{c}{1\,000 steps (hard copy)} \\
+Loss, gradient clip & \multicolumn{2}{c}{Huber ($\delta=1$), $\|\nabla\|_2\le10$} \\
+Exploration & \multicolumn{2}{c}{$\epsilon$: $1.0\rightarrow0.01$, exponential (0.05 at 50\% of budget)} \\
+Training budget & \multicolumn{2}{c}{3\,000 episodes = 144\,000 decisions} \\
+Checkpoint selection & \multicolumn{2}{c}{best greedy return on 100 validation days, every 100 episodes} \\
+\bottomrule
+\end{tabular}
+\end{table}
