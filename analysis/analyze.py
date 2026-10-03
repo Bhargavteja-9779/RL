@@ -187,7 +187,7 @@ def main_results(recs):
     heur = heur_frame("full")
     s = summarize(rl, heur)
     s.to_csv(SUM / "main_summary.csv", index=False)
-    tests = {k: paired_tests(rl["AA-DQN"], heur, k) for k in ("return", "on_time_rate", "mean_fatigue")}
+    tests = {k: paired_tests(rl["AA-DQN"], heur, k) for k in ("return", "on_time_rate", "mean_fatigue", "weighted_on_time", "completion_rate")}
     tests["return_vs_DQN"] = paired_tests(rl["AA-DQN"], pd.concat([rl["DQN"].groupby("seed").mean(numeric_only=True)
                                                                    .reset_index().assign(method="DQN")]),
                                           "return", against=["DQN"])
@@ -260,11 +260,21 @@ def fig_curves(recs, heur):
             se = M.std(0, ddof=1) / np.sqrt(len(M))
             ax.plot(ep, mu, color=C[name], label=name + (" (ours)" if name == "AA-DQN" else ""))
             ax.fill_between(ep, mu - 1.96 * se, mu + 1.96 * se, color=C[name], alpha=0.18, lw=0)
+    from aacs.baselines import CLASSES, EDF, run_policy
+    from aacs.env import CognitiveSchedulingEnv, make_cfg
+    from experiments.seeds import VALIDATION
+
+    params = json.loads((RES / "heuristics" / "full_params.json").read_text())
+    env = CognitiveSchedulingEnv(make_cfg("full"))
+    ref = {}
+    for h, pol in (("EDF-Periodic", CLASSES["EDF-Periodic"](**params["EDF-Periodic"]["params"])), ("EDF", EDF())):
+        rows = run_policy(env, pol, VALIDATION)
+        ref[h] = {k: np.mean([r[k] for r in rows]) for k in ("return", "on_time_rate")}
     for ax, k, lab in zip(axes, ("return", "on_time_rate"), ("Validation return", "Validation on-time rate")):
-        for h, ls in (("Cog-Heuristic", "--"), ("EDF-Threshold", ":"), ("EDF", "-.")):
-            v = heur[heur.method == h][k].mean()
+        for h, ls, txt in (("EDF-Periodic", "--", "Best tuned heuristic"), ("EDF", "-.", "EDF")):
+            v = ref[h][k]
             ax.axhline(v, color=C[h], lw=1.0, ls=ls)
-            ax.text(ax.get_xlim()[1] if False else 3000, v, " " + h, color=INK2, fontsize=6.5, va="center", ha="left")
+            ax.text(3000, v, " " + txt, color=INK2, fontsize=6.5, va="center", ha="left")
         ax.set_xlabel("Training episode (simulated workdays)")
         ax.set_ylabel(lab)
         ax.set_xlim(0, 3000)
@@ -616,7 +626,91 @@ def main():
     if b is not None:
         print(b.to_string())
     compute_cost(recs)
+    print(final_vs_best(recs).to_string())
+    write_numbers()
 
 
 if __name__ == "__main__":
     main()
+
+
+def _cam(s):
+    import re
+    parts = re.split(r"[^A-Za-z0-9]+", s)
+    out = "".join(p[:1].upper() + p[1:] for p in parts if p)
+    for d, w in zip("0123456789", ["Zero", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine"]):
+        out = out.replace(d, w)
+    return out
+
+
+def write_numbers():
+    """Emit LaTeX macros for every number quoted in the text, so prose and tables cannot drift apart."""
+    N = {}
+    s = pd.read_csv(SUM / "main_summary.csv").set_index("method")
+    for m in s.index:
+        k = _cam(m)
+        r = s.loc[m]
+        N[f"{k}Return"] = f"{r['return']:.2f}"
+        N[f"{k}ReturnSD"] = f"{r['return_sd']:.2f}"
+        N[f"{k}OnTimePct"] = f"{100 * r.on_time_rate:.1f}"
+        N[f"{k}WOnTimePct"] = f"{100 * r.weighted_on_time:.1f}"
+        N[f"{k}ComplPct"] = f"{100 * r.completion_rate:.1f}"
+        N[f"{k}Fatigue"] = f"{r.mean_fatigue:.3f}"
+        N[f"{k}Attention"] = f"{r.mean_attention:.3f}"
+        N[f"{k}BreakPct"] = f"{100 * r.break_frac:.1f}"
+        N[f"{k}HighFatPct"] = f"{100 * r.high_fatigue_frac:.1f}"
+    heur = s.loc[[m for m in HEUR if m in s.index]]
+    best = heur["return"].idxmax()
+    N["bestHeur"] = best
+    for suf in ("Return", "OnTimePct", "Fatigue", "BreakPct", "Attention"):
+        N[f"bestHeur{suf}"] = N[f"{_cam(best)}{suf}"]
+    N["aaReturn"], N["aaReturnSD"] = N["AADQNReturn"], N["AADQNReturnSD"]
+    N["aaOnTimePct"], N["aaFatigue"] = N["AADQNOnTimePct"], N["AADQNFatigue"]
+    N["edfOnTimePct"], N["edfFatigue"] = N["EDFOnTimePct"], N["EDFFatigue"]
+    N["fatigueRedVsEdfPct"] = f"{100 * (1 - s.loc['AA-DQN', 'mean_fatigue'] / s.loc['EDF', 'mean_fatigue']):.0f}"
+    N["onTimeGainVsEdfPP"] = f"{100 * (s.loc['AA-DQN', 'on_time_rate'] - s.loc['EDF', 'on_time_rate']):.1f}"
+    for metric, tag in (("return", "Ret"), ("on_time_rate", "On"), ("mean_fatigue", "Fat")):
+        t = pd.read_csv(SUM / f"tests_{metric}.csv").set_index("baseline")
+        for b in t.index:
+            r = t.loc[b]
+            sc = 100 if metric == "on_time_rate" else 1
+            dg = 1 if metric == "on_time_rate" else (2 if metric == "return" else 3)
+            k = _cam(b)
+            N[f"d{tag}{k}"] = f"{sc * r.mean_diff:.{dg}f}"
+            N[f"d{tag}{k}Lo"] = f"{sc * r.diff_lo:.{dg}f}"
+            N[f"d{tag}{k}Hi"] = f"{sc * r.diff_hi:.{dg}f}"
+            N[f"rb{tag}{k}"] = f"{r.rank_biserial:.2f}"
+            N[f"win{tag}{k}Pct"] = f"{100 * r.win_rate:.1f}"
+            N[f"seeds{tag}{k}"] = f"{int(r.seeds_better)}"
+    t = pd.read_csv(SUM / "tests_return_vs_DQN.csv").iloc[0]
+    N["dRetVsDqn"], N["dRetVsDqnLo"], N["dRetVsDqnHi"] = f"{t.mean_diff:.2f}", f"{t.diff_lo:.2f}", f"{t.diff_hi:.2f}"
+    N["winRetVsDqnPct"] = f"{100 * t.win_rate:.1f}"
+    if (SUM / "ablations.csv").exists():
+        a = pd.read_csv(SUM / "ablations.csv")
+        for _, r in a.iterrows():
+            k = _cam(r.variant)
+            N[f"abl{k}Diff"], N[f"abl{k}Lo"], N[f"abl{k}Hi"] = f"{r['diff']:.2f}", f"{r.diff_lo:.2f}", f"{r.diff_hi:.2f}"
+            N[f"abl{k}DiffOnPP"] = f"{100 * r.diff_o:.1f}"
+            N[f"abl{k}DiffOnLo"], N[f"abl{k}DiffOnHi"] = f"{100 * r.diff_o_lo:.1f}", f"{100 * r.diff_o_hi:.1f}"
+            N[f"abl{k}Ret"], N[f"abl{k}OnPct"] = f"{r.rl_return:.2f}", f"{100 * r.rl_on_time:.1f}"
+            N[f"abl{k}Best"], N[f"abl{k}BestRet"] = r.best_heur, f"{r.best_heur_return:.2f}"
+            N[f"abl{k}BestOnPct"] = f"{100 * r.best_heur_on_time:.1f}"
+            N[f"abl{k}P"] = "<10^{-4}" if r.p < 1e-4 else f"={r.p:.3f}"
+            N[f"abl{k}POn"] = "<10^{-4}" if r.p_o < 1e-4 else f"={r.p_o:.3f}"
+            N[f"abl{k}Fatigue"] = f"{r.rl_fatigue:.3f}"
+    if (SUM / "compute.csv").exists():
+        c = pd.read_csv(SUM / "compute.csv").set_index("method")
+        N["trainTimeAA"] = f"{c.loc['AA-DQN', 'train_time_s']:.0f}"
+        N["trainTimeDQN"] = f"{c.loc['DQN', 'train_time_s']:.0f}"
+        N["inferUs"] = f"{c.loc['AA-DQN', 'us_per_decision']:.0f}"
+    fb = pd.read_csv(SUM / "final_vs_best.csv")
+    for _, r in fb.iterrows():
+        k = _cam(r.method) + ("Sel" if r.checkpoint.startswith("val") else "Final")
+        N[f"{k}Return"], N[f"{k}OnTimePct"] = f"{r.ret:.2f}", f"{100 * r.on:.1f}"
+        if r.checkpoint.startswith("val"):
+            N[f"{_cam(r.method)}BestEp"] = f"{r.best_ep:.0f}"
+    lines = ["% auto-generated by analysis/analyze.py -- do not edit"]
+    for k, v in N.items():
+        lines.append(f"\\newcommand{{\\{k}}}{{{v}}}")
+    (ROOT / "paper" / "numbers.tex").write_text("\n".join(lines) + "\n")
+    return N

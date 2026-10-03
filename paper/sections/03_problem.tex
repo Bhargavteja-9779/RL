@@ -31,7 +31,7 @@ $\gamma_{\mathrm{RL}}$ & RL discount factor (distinct from circadian amplitude $
 The day is divided into $T=48$ slots of $\Delta=10$ minutes (09:00--17:00). Each day contains $N=12$ tasks. Six tasks are available at the start of the day and the remaining six arrive at slots drawn uniformly from $\{1,\dots,\lfloor0.6T\rfloor\}$, which models interruptions and new requests. Task $i$ has difficulty $d_i\sim\mathcal U[0.2,1.0]$ and is labelled \emph{hard} if $d_i\ge0.6$ and \emph{easy} otherwise. Its work content is $w_i=1+2.5\,d_i$ work units, so a task requires between 1.5 and 3.5 slots (15--35 min) at full capacity. Its deadline is $D_i=\min\{T,\ a_i+\lceil s_iT\rceil\}$ with relative slack $s_i\sim\mathcal U[0.3,1.0]$. With these settings, the expected daily work content ($\approx\!30$ units) is below the capacity of a fully rested worker (48 units) but above what a worker can deliver once attention and fatigue degrade. Scheduling decisions therefore matter: the day is \emph{conditionally overloaded}.
 
 \subsection{Cognitive dynamics}
-\paragraph{Effective attention.}
+\paragraph{Effective attention}
 Following the decomposition of alertness into homeostatic and circadian components \cite{borbely1982,akerstedt1997,borbely2016}, effective attention is
 \begin{equation}
 A_t=\mathrm{clip}\big(H_t+\gamma\,c(h_t),\,0,\,1\big),\qquad
@@ -40,7 +40,7 @@ c(h)=0.2\,e^{-(h-10.5)^2/(2\cdot1.5^2)}-e^{-(h-14)^2/(2\cdot1.2^2)},
 \end{equation}
 where $c(h)$ encodes a late-morning peak and the post-lunch dip around 14:00 \cite{monk2005,schmidt2007,blatter2007} (Fig.~\ref{fig:dynamics}a), and $\gamma=0.15$ sets its amplitude.
 
-\paragraph{Homeostatic attention resource.}
+\paragraph{Homeostatic attention resource}
 Working on a task of difficulty $d$ depletes the attentional resource, and the depletion is accelerated by fatigue. This captures the vigilance decrement and resource-control accounts of sustained attention \cite{mackworth1948,warm2008,thomson2015}. Resting restores the resource exponentially towards its maximum \cite{ariga2011,albulescu2022}:
 \begin{equation}
 H_{t+1}=\mathrm{clip}\Big(H_t-\alpha\,d\,(1+\phi F_t)\,u_t+\beta\,(1-H_t)\,b_t+\sigma_p\,\xi_t,\ 0,\ 1\Big),\qquad \xi_t\sim\mathcal N(0,1),
@@ -48,15 +48,15 @@ H_{t+1}=\mathrm{clip}\Big(H_t-\alpha\,d\,(1+\phi F_t)\,u_t+\beta\,(1-H_t)\,b_t+\
 \end{equation}
 where $u_t,b_t\in\{0,1\}$ indicate work and rest ($u_t+b_t=1$), $\alpha=0.02$ is the depletion rate per unit difficulty, $\phi=0.5$ the fatigue coupling, $\beta=0.30$ the per-slot recovery fraction, and $\sigma_p=0.02$ the process-noise scale that represents unmodelled day-to-day and moment-to-moment variability.
 
-\paragraph{Fatigue.}
-Fatigue accumulates exponentially towards saturation during work and decays exponentially during rest. This is the discrete-time analogue of the fatigue--recovery model of \citet{jaber2010}, also used in \cite{jaber2013,givi2015}:
+\paragraph{Fatigue}
+Fatigue accumulates exponentially towards saturation during work and decays exponentially during rest. This is the discrete-time analogue of the fatigue--recovery model of Jaber and Neumann~\cite{jaber2010}, also used in \cite{jaber2013,givi2015}:
 \begin{equation}
 F_{t+1}=\mathrm{clip}\Big(F_t+\delta\,d\,(1-F_t)\,u_t-\eta\,F_t\,b_t,\ 0,\ 1\Big),
 \label{eq:F}
 \end{equation}
 with accumulation rate $\delta=0.05$ and recovery rate $\eta=0.20$.
 
-\paragraph{Productivity.}
+\paragraph{Productivity}
 While working on task $i$, the worker completes
 \begin{equation}
 \rho_t=\rho_0\,A_t^{\,0.5+d_i}\,(1-\kappa F_t)
@@ -64,7 +64,7 @@ While working on task $i$, the worker completes
 \end{equation}
 work units in slot $t$, with $\rho_0=1$ and $\kappa=0.5$. The exponent makes hard tasks more sensitive to attention than easy ones (Fig.~S1 in the Supplementary Material), in line with resource theories in which demanding tasks draw more heavily on limited capacity \cite{kahneman1973,wickens2008}. The fatigue factor reduces throughput multiplicatively \cite{boksem2008,hockey2013}. A task is complete at the end of the first slot in which its cumulative work reaches $w_i$.
 
-\paragraph{Initial state and behavioural plausibility.}
+\paragraph{Initial state and behavioural plausibility}
 Each day starts with $H_0\sim\mathcal U[0.8,1.0]$ and $F_0\sim\mathcal U[0,0.15]$. Parameters were chosen \emph{a priori} to reproduce qualitative patterns reported in the time-on-task and fatigue literature rather than fitted to a particular dataset. Under continuous work without breaks, attention falls from $\approx\!1.0$ to $\approx\!0.3$ by the end of the day, with a visible early-afternoon trough, and fatigue rises to $\approx\!0.85$. One 10-minute break recovers 30\% of the attentional deficit and 20\% of accumulated fatigue (Fig.~\ref{fig:dynamics}b,c). Because no single parameterisation can represent all workers, Section~\ref{sec:robust} evaluates the policies zero-shot on resilient and fatigue-prone profiles in which all four rate parameters are scaled by $\pm30\%$.
 
 \begin{figure}[t]

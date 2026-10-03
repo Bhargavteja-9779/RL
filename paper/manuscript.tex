@@ -1,8 +1,8 @@
-\documentclass[preprint,12pt]{elsarticle}
+\documentclass[review,12pt]{elsarticle}
 \usepackage[T1]{fontenc}
 \usepackage[utf8]{inputenc}
 \usepackage{newtxtext,newtxmath}
-\usepackage{amsmath,amssymb}
+\usepackage{amsmath}
 \usepackage{graphicx,booktabs,makecell,multirow,array}
 \usepackage[labelfont=bf]{caption}
 \usepackage{enumitem}
@@ -11,12 +11,12 @@
 \usepackage{xcolor}
 \usepackage[hidelinks]{hyperref}
 \usepackage{lineno}
-\usepackage[a4paper,margin=2.4cm]{geometry}
-\usepackage{setspace}
-\onehalfspacing
 \linenumbers
 \biboptions{numbers,sort&compress}
 \journal{Results in Engineering}
+\makeatletter
+\def\ps@pprintTitle{\let\@oddhead\@empty\let\@evenhead\@empty\let\@oddfoot\@empty\let\@evenfoot\@empty}
+\makeatother
 \input{numbers}
 
 \begin{document}
