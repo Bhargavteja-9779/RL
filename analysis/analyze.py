@@ -518,11 +518,13 @@ def behaviour():
             ax2.plot(hours, mu, color=col, label=lab)
             ax2.fill_between(hours, q1, q3, color=col, alpha=0.18, lw=0)
         ax2.set_ylim(0, 1)
+        ax2.set_xticks([9, 11, 13, 15, 17])
+        ax.set_xlim(9, 17)
         ax2.set_xlabel("Clock time (h)")
         if j == 0:
             ax2.set_ylabel("Latent state")
     axes[0, 0].legend(loc="lower left", fontsize=6, framealpha=0.85, frameon=True)
-    axes[1, 0].legend(loc="lower left", fontsize=6)
+    axes[1, 0].legend(loc="lower right", fontsize=6)
     fig.tight_layout(h_pad=0.6, w_pad=0.6)
     save(fig, "fig_behaviour")
 

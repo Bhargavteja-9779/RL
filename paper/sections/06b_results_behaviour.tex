@@ -1,0 +1,17 @@
+\subsection{What does the agent learn?}\label{sec:behaviour}
+Figure~\ref{fig:behaviour} shows how actions and latent states evolve through the day, aggregated over the 500 test days (and over the ten seeds for AA-DQN). Three behavioural regularities distinguish the learned policy from the heuristics.
+
+\emph{Work while fresh.} AA-DQN almost never rests in the first hour (0.2\% of slots, versus 4.6\% for EDF-Threshold and a fixed 16.7\% for EDF-Periodic). It exploits the high morning attention and lets fatigue rise to $\approx\!0.38$ before it starts inserting breaks. The heuristics cannot distinguish a fresh worker at 09:30 from a recovered one at 15:00, because their rules depend only on instantaneous thresholds or a fixed cycle.
+
+\emph{Rest when the circadian trough makes work least productive.} The break share of AA-DQN rises steadily to a peak of 25\% between 13:00 and 14:00, which coincides with the modelled post-lunch dip, and declines afterwards. In the 13:00--15:00 window it rests in 24.1\% of slots, versus 13.1\% at other times. Resting is cheapest when the productivity it forgoes is lowest, so the agent concentrates recovery where the work rate (Eq.~\eqref{eq:rho}) is lowest. The threshold heuristic shows a similar but stronger peak (36\% between 13:00 and 14:00) only because the dip pushes observed attention below its fixed threshold. It reacts to the dip; it does not anticipate it.
+
+\emph{Match difficulty to capacity.} The share of hard work under AA-DQN falls from 44\% in the morning to 22\% in the last hour, whereas EDF does \emph{more} hard work in the afternoon (71\%) than in the morning (60\%), and EDF-Threshold returns to its morning level of hard work (54\%) in the last hour, because hard tasks that were postponed become urgent. Since hard work is disproportionately slowed by low attention (Eq.~\eqref{eq:rho}), front-loading it while attention is high and filling the afternoon with easy tasks increases the number of tasks completed on time. This explains why AA-DQN finishes more tasks on time with slightly less total effort (Section~\ref{sec:main}). The hand-crafted Cog-Heuristic was designed to capture this intuition but, with a single attention threshold, it postpones hard tasks until their deadlines force them into the afternoon (67\% hard work after 16:00), which is the opposite of what the learned policy does. This contrast illustrates the difficulty of encoding time-dependent, state-dependent and deadline-dependent trade-offs in hand-written rules.
+
+Compared with the memoryless DQN, AA-DQN rests more (\AADQNBreakPct\% versus \DQNBreakPct\% of slots) and takes breaks at a lower true fatigue level (0.35 versus 0.43). It therefore avoids the late, reactive breaks that a policy conditioned on single noisy readings tends to take.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\textwidth]{figures/fig_behaviour.pdf}
+\caption{Learned and heuristic behaviour across the workday on 500 test days. Top: share of slots spent on hard tasks, easy tasks and breaks. Bottom: mean true attention and fatigue (bands: interquartile range).}
+\label{fig:behaviour}
+\end{figure}

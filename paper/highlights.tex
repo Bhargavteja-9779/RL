@@ -1,0 +1,16 @@
+\documentclass[11pt]{article}
+\usepackage[a4paper,margin=2.5cm]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{newtxtext,newtxmath}
+\pagestyle{empty}
+\input{numbers}
+\begin{document}
+\section*{Highlights}
+\begin{itemize}
+\item Human task scheduling is cast as a POMDP with latent attention and fatigue.
+\item Rest breaks are explicit actions chosen by a memory-augmented deep Q-network.
+\item Agent beats tuned break heuristics: \aaOnTimePct\% vs \bestHeurOnTimePct\% of tasks on time.
+\item The learned policy rests during the post-lunch dip and does hard tasks early.
+\item Ablations show the gain depends on modelling dynamic human cognition.
+\end{itemize}
+\end{document}
