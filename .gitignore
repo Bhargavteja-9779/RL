@@ -13,3 +13,7 @@ __pycache__/
 *.spl
 *.tmp
 results/runs/*.json
+results/runs/*_final.pt
+results/runs_v1_3action/
+results/*.log
+results/traces.npz

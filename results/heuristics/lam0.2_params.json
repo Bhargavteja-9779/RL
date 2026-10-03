@@ -1,0 +1,36 @@
+{
+ "EDF-Periodic": {
+  "params": {
+   "period": 3
+  },
+  "tuning_return": 12.20704534176135
+ },
+ "EDF-Threshold": {
+  "params": {
+   "tau_f": 0.4,
+   "tau_a": 0.7
+  },
+  "tuning_return": 12.044350235650215
+ },
+ "SPT-Periodic": {
+  "params": {
+   "period": 3
+  },
+  "tuning_return": 13.043242093614056
+ },
+ "SPT-Threshold": {
+  "params": {
+   "tau_f": 0.4,
+   "tau_a": 0.7
+  },
+  "tuning_return": 13.209706416257172
+ },
+ "Cog-Heuristic": {
+  "params": {
+   "tau_f": 0.3,
+   "tau_a": 0.6,
+   "tau_h": 0.9
+  },
+  "tuning_return": 11.291733754969737
+ }
+}
