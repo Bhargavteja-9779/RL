@@ -1,4 +1,12 @@
 \section{Attention-aware deep Q-network}\label{sec:method}
+Figure~\ref{fig:framework} gives an overview of the closed loop between the simulated workday and the learning agent.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\textwidth]{figures/framework.pdf}
+\caption{Overview of the attention-aware scheduling framework. The worker's cognitive state is latent; the agent receives noisy estimates together with a queue summary, encodes a short observation history, and selects an intensity class, a dispatching rule or a break. Transitions are stored in a replay buffer and used to train a dueling Q-network with Double-DQN targets.}
+\label{fig:framework}
+\end{figure}
 
 \subsection{From Q-learning to deep Q-networks}
 For a fully observable MDP, the optimal action-value function satisfies the Bellman optimality equation
@@ -7,7 +15,7 @@ $Q^*(s,a)=\mathbb E\big[r+\gamma_{\mathrm{RL}}\max_{a'}Q^*(s',a')\,\big|\,s,a\bi
 \subsection{Handling partial observability with an observation history}
 In a POMDP, the optimal policy is a function of the belief $b_t(s)=\Pr(s_t=s\mid o_{0:t},a_{0:t-1})$ \cite{astrom1965,kaelbling1998}. Exact belief tracking is intractable for our continuous, nonlinear dynamics, and a memoryless policy $\pi(o_t)$ can be arbitrarily suboptimal \cite{singh1994}. Two structural properties of the scheduling problem make a short history informative. First, the latent state is persistent. $H_t$ and $F_t$ change slowly relative to the observation noise, so averaging several consecutive estimates reduces the error: for $k$ independent observations of a quasi-static quantity, the standard error falls by a factor $\sqrt k$. Second, the trajectory of the observations, for example fatigue rising after consecutive hard tasks or attention recovering after a break, reveals the direction and rate of change, which a single noisy reading cannot. We therefore feed the network the window
 \begin{equation}
-x_t=[o_{t-k+1},\dots,o_t]\in\mathbb R^{11k},\qquad k=4,
+x_t=[o_{t-k+1},\dots,o_t]\in\mathbb R^{13k},\qquad k=4,
 \end{equation}
 zero-padded at the start of the day. This is the finite-memory approximation used for Atari \cite{mnih2015}. It is computationally cheaper than recurrent alternatives \cite{hausknecht2015,igl2018} and is a strong baseline for many POMDPs \cite{ni2022}. A 40-minute window spans the time scale of a typical work bout. Section~\ref{sec:component} varies $k\in\{1,2,4,8\}$.
 
@@ -25,7 +33,7 @@ The shared body consists of two fully connected layers of 128 ReLU units. The lo
 \begin{equation}
 \mathcal L(\theta)=\mathbb E_{(x,a,r,x')\sim\mathcal D}\big[\ell_{\delta=1}\big(Q(x,a;\theta)-y\big)\big].
 \end{equation}
-Parameters are updated with Adam \cite{kingma2015} and gradient-norm clipping. The vanilla DQN baseline differs from AA-DQN only in using $k=1$, the standard max target and a single linear output head. This isolates the contribution of memory and of the two stabilisation components.
+Parameters are updated with Adam \cite{kingma2015} and gradient-norm clipping. The vanilla DQN baseline uses the same action set and observation but $k=1$, the standard max target and a single linear output head. This isolates the contribution of memory and of the two stabilisation components.
 
 \subsection{Exploration and training procedure}
 Actions are selected $\epsilon$-greedily with an exponentially decaying exploration rate
@@ -59,4 +67,4 @@ $\epsilon_n=\epsilon_{\min}+(\epsilon_{\max}-\epsilon_{\min})e^{-\kappa_\epsilon
 \end{algorithm}
 
 \subsection{Computational complexity}
-A forward pass costs $O(11k\cdot128+128^2+128\cdot|\mathcal A|)\approx2.3\times10^4$ multiply--accumulate operations, independent of the number of tasks, because the observation summarises the queue per class. The dispatch step is $O(N\log N)$. Inference therefore takes microseconds on a CPU (Section~\ref{sec:cost}), which is negligible relative to a 10-minute decision interval and allows deployment on wearable or edge devices.
+A forward pass costs $O(13k\cdot128+128^2+128\cdot|\mathcal A|)\approx2.4\times10^4$ multiply--accumulate operations, independent of the number of tasks, because the observation summarises the queue per class. The dispatch step is $O(N\log N)$. Inference therefore takes microseconds on a CPU (Section~\ref{sec:cost}), which is negligible relative to a 10-minute decision interval and allows deployment on wearable or edge devices.

@@ -70,3 +70,14 @@ def test_metric_ranges():
     for r in rows:
         assert 0 <= r["on_time_rate"] <= r["completion_rate"] <= 1
         assert 0 <= r["mean_fatigue"] <= 1
+
+
+def test_hybrid_actions_dispatch_by_rule():
+    from aacs.env import EDF_ANY, SPT_ANY
+
+    env = CognitiveSchedulingEnv(make_cfg())
+    env.reset(4)
+    pend = np.flatnonzero(env.pending_mask())
+    assert env.macro_to_task(SPT_ANY) == pend[np.argmin(env.remaining[pend])]
+    assert env.deadline[env.macro_to_task(EDF_ANY)] == env.deadline[pend].min()
+    assert make_cfg().n_actions == 5 and make_cfg(action_set="intensity").n_actions == 3

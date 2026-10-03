@@ -11,9 +11,9 @@ from dataclasses import dataclass, replace
 
 import numpy as np
 
-EASY, HARD, BREAK = 0, 1, 2
-N_ACTIONS = 3
-OBS_DIM = 11
+EASY, HARD, EDF_ANY, SPT_ANY, BREAK = 0, 1, 2, 3, 4
+ACTION_SETS = {"intensity": (EASY, HARD, BREAK), "hybrid": (EASY, HARD, EDF_ANY, SPT_ANY, BREAK)}
+OBS_DIM = 13
 
 
 @dataclass(frozen=True)
@@ -53,6 +53,12 @@ class EnvConfig:
     r_miss: float = 0.5
     lam_fatigue: float = 0.10
     mu_attention: float = 0.05
+    # agent interface
+    action_set: str = "hybrid"
+
+    @property
+    def n_actions(self) -> int:
+        return len(ACTION_SETS[self.action_set])
 
     def with_(self, **kw) -> "EnvConfig":
         return replace(self, **kw)
@@ -129,11 +135,22 @@ class CognitiveSchedulingEnv:
         idx = np.flatnonzero(mask)
         return int(idx[np.lexsort((idx, self.deadline[idx]))[0]])
 
-    def macro_to_task(self, action: int) -> int:
-        pend = self.pending_mask()
-        if action == BREAK or not pend.any():
+    def _spt_in(self, mask: np.ndarray) -> int:
+        if not mask.any():
             return -1
-        want = self.is_hard if action == HARD else ~self.is_hard
+        idx = np.flatnonzero(mask)
+        return int(idx[np.lexsort((idx, self.remaining[idx]))[0]])
+
+    def macro_to_task(self, macro: int) -> int:
+        """Map a semantic macro-action (EASY, HARD, EDF_ANY, SPT_ANY, BREAK) to a task index (-1 = rest)."""
+        pend = self.pending_mask()
+        if macro == BREAK or not pend.any():
+            return -1
+        if macro == EDF_ANY:
+            return self._edf_in(pend)
+        if macro == SPT_ANY:
+            return self._spt_in(pend)
+        want = self.is_hard if macro == HARD else ~self.is_hard
         j = self._edf_in(pend & want)
         return j if j >= 0 else self._edf_in(pend)
 
@@ -148,18 +165,21 @@ class CognitiveSchedulingEnv:
         pend = (self.arrival <= t) & (self.done_at < 0)
         for k, cls in enumerate((~self.is_hard, self.is_hard)):
             m = pend & cls
-            base = 3 + 4 * k
+            base = 3 + 5 * k
             o[base] = m.sum() / c.n_tasks
             o[base + 1] = self.remaining[m].sum() / 20.0
             o[base + 2] = np.clip((self.deadline[m].min() - t) / c.horizon, -1, 1) if m.any() else 1.0
             o[base + 3] = (m & (self.deadline <= t)).sum() / c.n_tasks
+            o[base + 4] = self.remaining[m].min() / 4.0 if m.any() else 0.0
         return o
 
     # ------------------------------------------------------------------ step
     def step(self, action: int):
-        return self.step_task(self.macro_to_task(int(action)), macro=int(action))
+        """Agent interface: `action` indexes the configured action set."""
+        macro = ACTION_SETS[self.cfg.action_set][int(action)]
+        return self.step_task(self.macro_to_task(macro))
 
-    def step_task(self, j: int, macro: int | None = None):
+    def step_task(self, j: int):
         c = self.cfg
         t = self.t
         r = 0.0
@@ -186,7 +206,7 @@ class CognitiveSchedulingEnv:
         if c.cognition:
             self.H = float(np.clip(self.H + c.process_noise * self._xi[t], 0.0, 1.0))
             self.F = float(np.clip(self.F, 0.0, 1.0))
-        self._log_act[t] = act if macro is None else macro
+        self._log_act[t] = act
         self.t = t + 1
         A, F = self.attention(), self.fatigue()
         self._log_A[t] = A

@@ -29,11 +29,11 @@
       label={[font=\small\bfseries, text=ink, anchor=north west]north west:Simulated workday (POMDP)}] (env) {};
 \end{scope}
 % ---------------- observation
-\node[obs, right=1.5cm of cog, minimum width=3.0cm] (o) {\textbf{Noisy observation} $o_t$\\[1pt]\scriptsize $\tilde A_t=A_t+\epsilon^A_t,\ \tilde F_t=F_t+\epsilon^F_t$\\[-1pt]\scriptsize time + per-class task summary};
+\node[obs, right=1.5cm of cog, minimum width=3.0cm] (o) {\textbf{Noisy observation} $o_t$\\[1pt]\scriptsize $\tilde A_t=A_t+\epsilon^A_t,\ \tilde F_t=F_t+\epsilon^F_t$\\[-1pt]\scriptsize time + per-class queue summary};
 \node[obs, below=0.45cm of o, minimum width=3.0cm] (h) {\textbf{History window}\\[1pt]\scriptsize $x_t=[o_{t-k+1},\dots,o_t]$};
 % ---------------- agent
 \node[box, right=1.2cm of h, minimum width=3.3cm, fill=bluel, draw=blue] (q) {\textbf{Dueling Q-network}\\[1pt]\scriptsize $Q(x_t,\cdot;\theta)=V(x_t)+A(x_t,\cdot)$\\[-1pt]\scriptsize 2$\times$128 ReLU};
-\node[box, above=0.45cm of q, minimum width=3.3cm] (pol) {\textbf{$\epsilon$-greedy action}\\[1pt]\scriptsize $a_t\in\{\text{easy},\ \text{hard},\ \text{break}\}$};
+\node[box, above=0.45cm of q, minimum width=3.3cm] (pol) {\textbf{$\epsilon$-greedy action}\\[1pt]\scriptsize $a_t\in\{\text{easy},\text{hard},\text{EDF},\text{SPT},\text{break}\}$};
 \node[box, below=0.45cm of q, minimum width=3.3cm] (buf) {\textbf{Replay buffer} $\mathcal D$\\[1pt]\scriptsize $(x_t,a_t,r_t,x_{t+1})$};
 \node[box, below=0.45cm of buf, minimum width=3.3cm] (tgt) {\textbf{Double-DQN target}\\[1pt]\scriptsize $y=r+\gamma Q_{\bar\theta}(x',\arg\max_{a'}Q_\theta(x',a'))$};
 \begin{scope}[on background layer]
@@ -45,7 +45,7 @@
 \draw[arr] (o) -- (h);
 \draw[arr] (h) -- (q);
 \draw[arr] (q) -- (pol);
-\draw[arr] (pol.north) -- ($(pol.north |- env.north)+(0,0.75)$) -- node[lab, above]{dispatch: EDF task within the selected class, or rest} ($(tasks.north |- env.north)+(0,0.75)$) -- (tasks.north);
+\draw[arr] (pol.north) -- ($(pol.north |- env.north)+(0,0.75)$) -- node[lab, above]{dispatch: task chosen by the selected intensity class or rule, or rest} ($(tasks.north |- env.north)+(0,0.75)$) -- (tasks.north);
 \draw[arr] (tasks) -- (cog);
 \draw[arr] (cog) -- (eff);
 \draw[arr] (eff) -- (rew);

@@ -21,33 +21,25 @@ def jobs():
         J.append(("main", "DQN", DQN_CFG, "full", {}, s))
         J.append(("main", "AA-DQN", AADQN_CFG, "full", {}, s))
     for abl in ("no_obs_noise", "no_circadian", "no_cognition", "task_reward_only"):
-        for s in range(10):
+        for s in range(5):
             J.append(("ablation", f"AA-DQN@{abl}", AADQN_CFG, abl, {}, s))
-    for lam in (0.05, 0.2, 0.4):
-        for s in range(5):
-            J.append(("pareto", f"AA-DQN@lam{lam}", AADQN_CFG, "full", dict(lam_fatigue=lam, mu_attention=lam / 2), s))
-    comp = {
-        "AA-DQN-noHist": replace(AADQN_CFG, name="AA-DQN-noHist", history=1),
-        "AA-DQN-noDouble": replace(AADQN_CFG, name="AA-DQN-noDouble", double=False),
-        "AA-DQN-noDueling": replace(AADQN_CFG, name="AA-DQN-noDueling", dueling=False),
-    }
-    for name, cfg in comp.items():
-        for s in range(5):
-            J.append(("component", name, cfg, "full", {}, s))
-    sens = {
-        "AA-DQN-k2": replace(AADQN_CFG, name="AA-DQN-k2", history=2),
-        "AA-DQN-k8": replace(AADQN_CFG, name="AA-DQN-k8", history=8),
-        "AA-DQN-lr1e-4": replace(AADQN_CFG, name="AA-DQN-lr1e-4", lr=1e-4),
-        "AA-DQN-lr1e-3": replace(AADQN_CFG, name="AA-DQN-lr1e-3", lr=1e-3),
-    }
-    for name, cfg in sens.items():
-        for s in range(3):
-            J.append(("sensitivity", name, cfg, "full", {}, s))
-    gru = replace(AADQN_CFG, name="AA-DQN-GRU", history=8, encoder="gru")
-    for s in range(5):
-        J.append(("recurrent", "AA-DQN-GRU", gru, "full", {}, s))
     for s in range(5):
         J.append(("randomized", "AA-DQN-DR", replace(AADQN_CFG, name="AA-DQN-DR"), "full", {}, s))
+    for lam in (0.05, 0.2, 0.4):
+        for s in range(3):
+            J.append(("pareto", f"AA-DQN@lam{lam}", AADQN_CFG, "full", dict(lam_fatigue=lam, mu_attention=lam / 2), s))
+    comp = {
+        "AA-DQN-noHist": (replace(AADQN_CFG, name="AA-DQN-noHist", history=1), {}),
+        "AA-DQN-noDouble": (replace(AADQN_CFG, name="AA-DQN-noDouble", double=False), {}),
+        "AA-DQN-noDueling": (replace(AADQN_CFG, name="AA-DQN-noDueling", dueling=False), {}),
+        "AA-DQN-3act": (replace(AADQN_CFG, name="AA-DQN-3act"), dict(action_set="intensity")),
+        "AA-DQN-k2": (replace(AADQN_CFG, name="AA-DQN-k2", history=2), {}),
+        "AA-DQN-k8": (replace(AADQN_CFG, name="AA-DQN-k8", history=8), {}),
+        "AA-DQN-GRU": (replace(AADQN_CFG, name="AA-DQN-GRU", history=8, encoder="gru"), {}),
+    }
+    for name, (cfg, over) in comp.items():
+        for s in range(3):
+            J.append(("component", name, cfg, "full", over, s))
     return J
 
 

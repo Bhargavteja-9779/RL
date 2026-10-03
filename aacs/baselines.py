@@ -5,7 +5,7 @@ import itertools
 
 import numpy as np
 
-from .env import BREAK, EASY, HARD, CognitiveSchedulingEnv
+from .env import ACTION_SETS, EASY, HARD, CognitiveSchedulingEnv
 
 
 def _pick(env: CognitiveSchedulingEnv, key) -> int:
@@ -54,7 +54,7 @@ class RandomMacro(Policy):
         self.rng = np.random.default_rng(seed)
 
     def act(self, env):
-        return env.macro_to_task(int(self.rng.integers(3)))
+        return env.macro_to_task(ACTION_SETS["intensity"][int(self.rng.integers(3))])
 
 
 class EDFPeriodic(Policy):
@@ -90,6 +90,32 @@ class EDFThreshold(Policy):
         if f > self.tau_f or a < self.tau_a:
             return -1
         return _pick(env, env.deadline)
+
+
+class SPTPeriodic(EDFPeriodic):
+    """SPT with a fixed work/rest cycle."""
+
+    name = "SPT-Periodic"
+
+    def act(self, env):
+        if self.since >= self.period:
+            self.since = 0
+            return -1
+        j = _pick(env, env.remaining)
+        self.since = self.since + 1 if j >= 0 else 0
+        return j
+
+
+class SPTThreshold(EDFThreshold):
+    """Cognition-aware SPT: rest whenever observed fatigue/attention crosses a threshold."""
+
+    name = "SPT-Threshold"
+
+    def act(self, env):
+        a, f = env.observed_cognition()
+        if f > self.tau_f or a < self.tau_a:
+            return -1
+        return _pick(env, env.remaining)
 
 
 class CogHeuristic(Policy):
@@ -129,7 +155,10 @@ GRIDS = {
         tau_f=[0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 1.01], tau_a=[0.0, 0.2, 0.3, 0.4, 0.5, 0.6], tau_h=[0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
     ),
 }
-CLASSES = {"EDF-Periodic": EDFPeriodic, "EDF-Threshold": EDFThreshold, "Cog-Heuristic": CogHeuristic}
+GRIDS["SPT-Periodic"] = GRIDS["EDF-Periodic"]
+GRIDS["SPT-Threshold"] = GRIDS["EDF-Threshold"]
+CLASSES = {"EDF-Periodic": EDFPeriodic, "EDF-Threshold": EDFThreshold, "SPT-Periodic": SPTPeriodic,
+           "SPT-Threshold": SPTThreshold, "Cog-Heuristic": CogHeuristic}
 
 
 def tune(env: CognitiveSchedulingEnv, name: str, seeds) -> tuple[dict, float]:

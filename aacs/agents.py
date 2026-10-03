@@ -10,7 +10,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as Fnn
 
-from .env import N_ACTIONS, OBS_DIM, CognitiveSchedulingEnv, EnvConfig
+from .env import OBS_DIM, CognitiveSchedulingEnv, EnvConfig
 
 
 @dataclass(frozen=True)
@@ -30,7 +30,7 @@ class AgentConfig:
     eps_min: float = 0.01
     eps_reach_frac: float = 0.5
     grad_clip: float = 10.0
-    n_episodes: int = 3_000
+    n_episodes: int = 5_000
     encoder: str = "mlp"
 
 
@@ -53,7 +53,7 @@ class GRUBody(nn.Module):
 
 
 class QNet(nn.Module):
-    def __init__(self, in_dim: int, hidden: int, dueling: bool, encoder: str = "mlp"):
+    def __init__(self, in_dim: int, hidden: int, dueling: bool, encoder: str = "mlp", n_actions: int = 5):
         super().__init__()
         if encoder == "gru":
             self.body = GRUBody(in_dim // OBS_DIM, hidden)
@@ -62,9 +62,9 @@ class QNet(nn.Module):
         self.dueling = dueling
         if dueling:
             self.v = nn.Linear(hidden, 1)
-            self.a = nn.Linear(hidden, N_ACTIONS)
+            self.a = nn.Linear(hidden, n_actions)
         else:
-            self.q = nn.Linear(hidden, N_ACTIONS)
+            self.q = nn.Linear(hidden, n_actions)
 
     def forward(self, x):
         h = self.body(x)
@@ -118,13 +118,14 @@ class Replay:
 
 
 class DQNAgent:
-    def __init__(self, cfg: AgentConfig, seed: int):
+    def __init__(self, cfg: AgentConfig, seed: int, n_actions: int = 5):
         self.cfg = cfg
+        self.n_actions = n_actions
         torch.manual_seed(seed)
         self.rng = np.random.default_rng(seed)
         dim = OBS_DIM * cfg.history
-        self.q = QNet(dim, cfg.hidden, cfg.dueling, cfg.encoder)
-        self.qt = QNet(dim, cfg.hidden, cfg.dueling, cfg.encoder)
+        self.q = QNet(dim, cfg.hidden, cfg.dueling, cfg.encoder, n_actions)
+        self.qt = QNet(dim, cfg.hidden, cfg.dueling, cfg.encoder, n_actions)
         self.qt.load_state_dict(self.q.state_dict())
         self.opt = torch.optim.Adam(self.q.parameters(), lr=cfg.lr)
         self.replay = Replay(cfg.buffer_size, dim, self.rng)
@@ -142,7 +143,7 @@ class DQNAgent:
 
     def act(self, s):
         if self.rng.random() < self.epsilon():
-            return int(self.rng.integers(N_ACTIONS))
+            return int(self.rng.integers(self.n_actions))
         return int(self.greedy(s)[0])
 
     def update(self):
@@ -174,7 +175,7 @@ class DQNAgent:
         return loss
 
     def state_dict(self):
-        return {"cfg": asdict(self.cfg), "q": self.q.state_dict()}
+        return {"cfg": asdict(self.cfg), "q": self.q.state_dict(), "n_actions": self.n_actions}
 
 
 def evaluate_agent(agent: DQNAgent, env_cfg: EnvConfig, seeds, keep_traces: bool = False):
@@ -210,7 +211,7 @@ def randomized_cfg(base: EnvConfig, rng: np.random.Generator) -> EnvConfig:
 
 def train_agent(agent_cfg: AgentConfig, env_cfg: EnvConfig, seed: int, eval_seeds=None, eval_every: int = 100,
                 log_every_episode: bool = True, randomize: bool = False):
-    agent = DQNAgent(agent_cfg, seed)
+    agent = DQNAgent(agent_cfg, seed, env_cfg.n_actions)
     env = CognitiveSchedulingEnv(env_cfg)
     dr_rng = np.random.default_rng(seed + 777)
     hist = History(agent_cfg.history)

@@ -24,12 +24,14 @@ for d in (FIG, TAB, SUM):
     d.mkdir(parents=True, exist_ok=True)
 
 C = {"AA-DQN": "#2a78d6", "AA-DQN-DR": "#4a3aa7", "DQN": "#eb6834", "Cog-Heuristic": "#1baf7a", "EDF-Threshold": "#eda100",
-     "EDF-Periodic": "#e87ba4", "EDF": "#6b6a66", "FIFO": "#9a9993", "SPT": "#52514e", "Random": "#c3c2b7"}
-MK = {"AA-DQN": "o", "AA-DQN-DR": "P", "DQN": "s", "Cog-Heuristic": "^", "EDF-Threshold": "D", "EDF-Periodic": "v", "EDF": "x",
+     "EDF-Periodic": "#e87ba4", "SPT-Threshold": "#008300", "SPT-Periodic": "#e34948", "EDF": "#6b6a66", "FIFO": "#9a9993", "SPT": "#52514e", "Random": "#c3c2b7"}
+MK = {"AA-DQN": "o", "AA-DQN-DR": "P", "DQN": "s", "Cog-Heuristic": "^", "EDF-Threshold": "D", "EDF-Periodic": "v",
+      "SPT-Threshold": "h", "SPT-Periodic": "<", "EDF": "x",
       "FIFO": "+", "SPT": "*", "Random": "."}
 INK, INK2, GRID = "#0b0b0b", "#52514e", "#e4e3df"
-ORDER = ["Random", "FIFO", "EDF", "SPT", "EDF-Periodic", "EDF-Threshold", "Cog-Heuristic", "DQN", "AA-DQN"]
-HEUR = ["Random", "FIFO", "EDF", "SPT", "EDF-Periodic", "EDF-Threshold", "Cog-Heuristic"]
+ORDER = ["Random", "FIFO", "EDF", "SPT", "EDF-Periodic", "EDF-Threshold", "SPT-Periodic", "SPT-Threshold",
+         "Cog-Heuristic", "DQN", "AA-DQN"]
+HEUR = ["Random", "FIFO", "EDF", "SPT", "EDF-Periodic", "EDF-Threshold", "SPT-Periodic", "SPT-Threshold", "Cog-Heuristic"]
 METRICS = ["return", "on_time_rate", "weighted_on_time", "completion_rate", "mean_attention", "mean_fatigue",
            "high_fatigue_frac", "break_frac", "effort"]
 RNG = np.random.default_rng(2024)
@@ -436,7 +438,7 @@ def pareto(recs):
         rl = test_frame(recs, name)
         if rl.empty:
             continue
-        rl = rl[rl.train_seed < 5]
+        rl = rl[rl.train_seed < 3]
         o, f = per_seed(rl, "on_time_rate"), per_seed(rl, "mean_fatigue")
         pts.append(dict(lam=lam, on=o.mean(), on_sd=o.std(ddof=1), fat=f.mean(), fat_sd=f.std(ddof=1),
                         hf=per_seed(rl, "high_fatigue_frac").mean(), brk=per_seed(rl, "break_frac").mean()))
@@ -469,11 +471,13 @@ def pareto(recs):
 
 
 def component(recs):
-    names = [("AA-DQN", "AA-DQN (history $k{=}4$ + Double + Dueling)"), ("AA-DQN-noHist", "-- without history ($k{=}1$)"),
+    names = [("AA-DQN", "AA-DQN (hybrid actions, $k{=}4$, Double, Dueling)"),
+             ("AA-DQN-noHist", "-- without history ($k{=}1$)"),
              ("AA-DQN-noDouble", "-- without Double Q-learning"), ("AA-DQN-noDueling", "-- without dueling head"),
+             ("AA-DQN-3act", "-- intensity-only actions \\{easy, hard, break\\}"),
              ("AA-DQN-k2", "history $k{=}2$"), ("AA-DQN-k8", "history $k{=}8$"),
-             ("AA-DQN-lr1e-4", r"learning rate $10^{-4}$"), ("AA-DQN-lr1e-3", r"learning rate $10^{-3}$"),
-             ("AA-DQN-GRU", "GRU encoder over $k{=}8$ history"), ("DQN", "Vanilla DQN ($k{=}1$, no Double/Dueling)")]
+             ("AA-DQN-GRU", "GRU encoder over $k{=}8$ history"),
+             ("DQN", "Vanilla DQN ($k{=}1$, no Double/Dueling)")]
     rows = []
     for n, lab in names:
         rl = test_frame(recs, n)
@@ -505,7 +509,7 @@ def behaviour():
     for j, (m, key) in enumerate(meths):
         act = z[f"{key}__act"]
         ax = axes[0, j]
-        p = np.stack([(act == a).mean(0) for a in (1, 0, 2)])
+        p = np.stack([(act == a).mean(0) for a in (1, 0, 4)])
         ax.stackplot(hours, p, colors=["#184f95", "#86b6ef", "#e4e3df"], labels=["Hard task", "Easy task", "Break"],
                      edgecolor="white", linewidth=0.3)
         ax.set_title(m + (" (ours)" if m == "AA-DQN" else ""))
@@ -541,7 +545,7 @@ def behaviour():
         morning = hours < 12
         prev_F = np.concatenate([np.full((len(Fm), 1), np.nan), Fm[:, :-1]], axis=1)
         prev_A = np.concatenate([np.full((len(A), 1), np.nan), A[:, :-1]], axis=1)
-        brk = act == 2
+        brk = act == 4
         rows.append(dict(method=m, hard_share_morning=hard[:, morning].mean(), hard_share_afternoon=hard[:, ~morning].mean(),
                          break_share_dip=brk[:, (hours >= 13) & (hours < 15)].mean(), break_share_other=brk[:, (hours < 13) | (hours >= 15)].mean(),
                          fatigue_before_break=np.nanmean(prev_F[brk]), attention_before_break=np.nanmean(prev_A[brk]),
