@@ -200,14 +200,25 @@ def evaluate_agent(agent: DQNAgent, env_cfg: EnvConfig, seeds, keep_traces: bool
     return rows
 
 
+def randomized_cfg(base: EnvConfig, rng: np.random.Generator) -> EnvConfig:
+    """Domain randomisation over workload, worker profile and sensor noise."""
+    n = int(rng.integers(8, 17))
+    f = rng.uniform(0.7, 1.3)
+    return base.with_(n_tasks=n, n_initial=n // 2, alpha=base.alpha * f, delta=base.delta * f,
+                      beta=base.beta * (2 - f), eta=base.eta * (2 - f), obs_noise=rng.uniform(0.05, 0.2))
+
+
 def train_agent(agent_cfg: AgentConfig, env_cfg: EnvConfig, seed: int, eval_seeds=None, eval_every: int = 100,
-                log_every_episode: bool = True):
+                log_every_episode: bool = True, randomize: bool = False):
     agent = DQNAgent(agent_cfg, seed)
     env = CognitiveSchedulingEnv(env_cfg)
+    dr_rng = np.random.default_rng(seed + 777)
     hist = History(agent_cfg.history)
     train_log, curve = [], []
     best_val, best_state, best_ep = -np.inf, None, 0
     for ep in range(agent_cfg.n_episodes):
+        if randomize:
+            env = CognitiveSchedulingEnv(randomized_cfg(env_cfg, dr_rng))
         s = hist.reset(env.reset(seed * 1_000_003 + ep))
         done, losses = False, []
         while not done:

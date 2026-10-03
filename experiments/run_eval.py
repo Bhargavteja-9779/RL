@@ -85,8 +85,8 @@ def _robust_one(cond):
     for p in pols:
         for r in run_policy(env, p, TEST):
             rows.append({"condition": cond, "method": p.name, "train_seed": -1, **r})
-    for name in ("DQN", "AA-DQN"):
-        for s in range(10):
+    for name, nseeds in (("DQN", 10), ("AA-DQN", 10), ("AA-DQN-DR", 5)):
+        for s in range(nseeds):
             ck = torch.load(RES / "runs" / f"{name}_s{s}.pt", weights_only=False)
             ag = DQNAgent(AgentConfig(**ck["cfg"]), seed=s)
             ag.q.load_state_dict(ck["q"])

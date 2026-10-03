@@ -23,9 +23,9 @@ SUM = RES / "summary"
 for d in (FIG, TAB, SUM):
     d.mkdir(parents=True, exist_ok=True)
 
-C = {"AA-DQN": "#2a78d6", "DQN": "#eb6834", "Cog-Heuristic": "#1baf7a", "EDF-Threshold": "#eda100",
+C = {"AA-DQN": "#2a78d6", "AA-DQN-DR": "#4a3aa7", "DQN": "#eb6834", "Cog-Heuristic": "#1baf7a", "EDF-Threshold": "#eda100",
      "EDF-Periodic": "#e87ba4", "EDF": "#6b6a66", "FIFO": "#9a9993", "SPT": "#52514e", "Random": "#c3c2b7"}
-MK = {"AA-DQN": "o", "DQN": "s", "Cog-Heuristic": "^", "EDF-Threshold": "D", "EDF-Periodic": "v", "EDF": "x",
+MK = {"AA-DQN": "o", "AA-DQN-DR": "P", "DQN": "s", "Cog-Heuristic": "^", "EDF-Threshold": "D", "EDF-Periodic": "v", "EDF": "x",
       "FIFO": "+", "SPT": "*", "Random": "."}
 INK, INK2, GRID = "#0b0b0b", "#52514e", "#e4e3df"
 ORDER = ["Random", "FIFO", "EDF", "SPT", "EDF-Periodic", "EDF-Threshold", "Cog-Heuristic", "DQN", "AA-DQN"]
@@ -367,8 +367,9 @@ def robustness():
     out = agg.groupby(["condition", "method"]).agg(ret=("return", "mean"), ret_sd=("return", "std"),
                                                    on=("on_time_rate", "mean"), fat=("mean_fatigue", "mean")).reset_index()
     out.to_csv(SUM / "robustness.csv", index=False)
-    meths = ["AA-DQN", "DQN", "Cog-Heuristic", "EDF-Threshold", "EDF"]
-    fig, axes = plt.subplots(1, 3, figsize=(W2, 2.4), gridspec_kw={"width_ratios": [1.3, 1, 1]})
+    meths = [m for m in ["AA-DQN", "AA-DQN-DR", "DQN", "EDF-Periodic", "EDF-Threshold", "Cog-Heuristic", "EDF"]
+             if m in set(df.method)]
+    fig, axes = plt.subplots(1, 3, figsize=(W2, 2.55), gridspec_kw={"width_ratios": [1.3, 1, 1]})
     sig = [0.0, 0.05, 0.1, 0.2, 0.3]
     ax = axes[0]
     for m in meths:
@@ -377,7 +378,7 @@ def robustness():
             sub = agg[(agg.condition == f"noise{s_}") & (agg.method == m)]
             if sub.empty:
                 vals.append(np.nan); lo.append(np.nan); hi.append(np.nan); continue
-            if m in ("AA-DQN", "DQN"):
+            if m in ("AA-DQN", "AA-DQN-DR", "DQN"):
                 v = sub["return"].values
                 a, b = boot_ci(v)
             else:
@@ -389,17 +390,19 @@ def robustness():
     ax.axvline(0.1, color=INK2, lw=0.6, ls=":")
     ax.set_xlabel(r"Observation-noise s.d. $\sigma_o$ at test time")
     ax.set_ylabel("Episode return")
-    ax.legend(loc="lower left", ncol=1, fontsize=6.3)
+    handles, labels = ax.get_legend_handles_labels()
+    fig.legend(handles, [l + (" (ours)" if l == "AA-DQN" else "") for l in labels], loc="upper center",
+               ncol=len(labels), fontsize=6.3, bbox_to_anchor=(0.5, 1.07), handlelength=1.5, columnspacing=1.0)
     for ax, conds, labs, title in ((axes[1], ["profile_resilient", "noise0.1", "profile_fatigue_prone"],
                                     ["Resilient", "Nominal", "Fatigue-prone"], "Worker profile"),
                                    (axes[2], ["tasks8", "noise0.1", "tasks16"], ["8 tasks", "12 tasks", "16 tasks"],
                                     "Daily workload")):
         x = np.arange(len(conds))
-        width = 0.15
+        width = 0.8 / len(meths)
         for j, m in enumerate(meths):
             vals = [out[(out.condition == c) & (out.method == m)].ret.values for c in conds]
             vals = [v[0] if len(v) else np.nan for v in vals]
-            ax.plot(x + (j - 2) * width, vals, MK[m], color=C[m], ms=4.5, ls="none")
+            ax.plot(x + (j - (len(meths) - 1) / 2) * width, vals, MK[m], color=C[m], ms=4.5, ls="none")
         ax.set_xticks(x, labs)
         ax.set_title(title, color=INK)
         ax.grid(axis="x", visible=False)

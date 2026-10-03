@@ -46,6 +46,8 @@ def jobs():
     gru = replace(AADQN_CFG, name="AA-DQN-GRU", history=8, encoder="gru")
     for s in range(5):
         J.append(("recurrent", "AA-DQN-GRU", gru, "full", {}, s))
+    for s in range(5):
+        J.append(("randomized", "AA-DQN-DR", replace(AADQN_CFG, name="AA-DQN-DR"), "full", {}, s))
     return J
 
 
@@ -69,7 +71,7 @@ def run_job(job):
         return tag, "cached"
     ecfg = make_cfg(abl, **over)
     t0 = time.time()
-    agent, log, curve = train_agent(acfg, ecfg, seed, eval_seeds=VALIDATION)
+    agent, log, curve = train_agent(acfg, ecfg, seed, eval_seeds=VALIDATION, randomize=(group == "randomized"))
     train_time = time.time() - t0
     test_final = evaluate_agent(agent, ecfg, TEST)
     torch.save(agent.state_dict(), RUNS / f"{tag}_final.pt")
