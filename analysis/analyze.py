@@ -23,8 +23,8 @@ SUM = RES / "summary"
 for d in (FIG, TAB, SUM):
     d.mkdir(parents=True, exist_ok=True)
 
-C = {"AA-DQN": "#2a78d6", "AA-DQN-DR": "#4a3aa7", "DQN": "#eb6834", "Cog-Heuristic": "#1baf7a", "EDF-Threshold": "#eda100",
-     "EDF-Periodic": "#e87ba4", "SPT-Threshold": "#008300", "SPT-Periodic": "#e34948", "EDF": "#6b6a66", "FIFO": "#9a9993", "SPT": "#52514e", "Random": "#c3c2b7"}
+C = {"AA-DQN": "#2a78d6", "AA-DQN-DR": "#4a3aa7", "DQN": "#eb6834", "Cog-Heuristic": "#008300", "EDF-Threshold": "#eda100",
+     "EDF-Periodic": "#e87ba4", "SPT-Threshold": "#1baf7a", "SPT-Periodic": "#e34948", "EDF": "#6b6a66", "FIFO": "#9a9993", "SPT": "#52514e", "Random": "#c3c2b7"}
 MK = {"AA-DQN": "o", "AA-DQN-DR": "P", "DQN": "s", "Cog-Heuristic": "^", "EDF-Threshold": "D", "EDF-Periodic": "v",
       "SPT-Threshold": "h", "SPT-Periodic": "<", "EDF": "x",
       "FIFO": "+", "SPT": "*", "Random": "."}
@@ -372,7 +372,7 @@ def robustness():
     out = agg.groupby(["condition", "method"]).agg(ret=("return", "mean"), ret_sd=("return", "std"),
                                                    on=("on_time_rate", "mean"), fat=("mean_fatigue", "mean")).reset_index()
     out.to_csv(SUM / "robustness.csv", index=False)
-    meths = [m for m in ["AA-DQN", "AA-DQN-DR", "DQN", "EDF-Periodic", "EDF-Threshold", "Cog-Heuristic", "EDF"]
+    meths = [m for m in ["AA-DQN", "DQN", "SPT-Threshold", "EDF-Threshold", "EDF-Periodic", "AA-DQN-DR", "EDF"]
              if m in set(df.method)]
     fig, axes = plt.subplots(1, 3, figsize=(W2, 2.55), gridspec_kw={"width_ratios": [1.3, 1, 1]})
     sig = [0.0, 0.05, 0.1, 0.2, 0.3]
@@ -507,7 +507,7 @@ def behaviour():
         return None
     z = np.load(f)
     hours = 9 + np.arange(48) / 6
-    meths = [("AA-DQN", "AA_DQN"), ("Cog-Heuristic", "Cog_Heuristic"), ("EDF-Threshold", "EDF_Threshold"), ("EDF", "EDF")]
+    meths = [("AA-DQN", "AA_DQN"), ("SPT-Threshold", "SPT_Threshold"), ("EDF-Periodic", "EDF_Periodic"), ("EDF", "EDF")]
     fig, axes = plt.subplots(2, 4, figsize=(W2, 3.6), sharex=True)
     for j, (m, key) in enumerate(meths):
         act = z[f"{key}__act"]
@@ -540,7 +540,7 @@ def behaviour():
 
     # timing statistics
     rows = []
-    for m, key in meths + [("DQN", "DQN")]:
+    for m, key in meths + [("DQN", "DQN"), ("EDF-Threshold", "EDF_Threshold"), ("Cog-Heuristic", "Cog_Heuristic")]:
         if f"{key}__act" not in z:
             continue
         act, A, Fm = z[f"{key}__act"], z[f"{key}__A"], z[f"{key}__F"]
@@ -552,7 +552,9 @@ def behaviour():
         rows.append(dict(method=m, hard_share_morning=hard[:, morning].mean(), hard_share_afternoon=hard[:, ~morning].mean(),
                          break_share_dip=brk[:, (hours >= 13) & (hours < 15)].mean(), break_share_other=brk[:, (hours < 13) | (hours >= 15)].mean(),
                          fatigue_before_break=np.nanmean(prev_F[brk]), attention_before_break=np.nanmean(prev_A[brk]),
-                         attention_at_hard=np.nanmean(prev_A[hard]), end_fatigue=Fm[:, -1].mean()))
+                         attention_at_hard=np.nanmean(prev_A[hard]), end_fatigue=Fm[:, -1].mean(),
+                         **{f"break_h{9 + i}": brk[:, 6 * i:6 * i + 6].mean() for i in range(8)},
+                         **{f"hard_h{9 + i}": hard[:, 6 * i:6 * i + 6].mean() for i in range(8)}))
     pd.DataFrame(rows).to_csv(SUM / "behaviour.csv", index=False)
     return pd.DataFrame(rows)
 

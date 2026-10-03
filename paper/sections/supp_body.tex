@@ -1,0 +1,64 @@
+\input{sections/supp_spec}
+
+\section{Baseline tuning}\label{sec:s-tuning}
+Table~\ref{tab:s-heur} lists the parameters selected by grid search for each environment variant (maximum mean return on 300 tuning days). ``off'' indicates that the fatigue threshold was never triggered ($\tau_F=1.01$). In the static-capacity variant, rest has no benefit, and all threshold rules learn to (almost) never rest.
+
+\begin{table}[h]
+\centering
+\caption{Tuned heuristic parameters per environment variant.}
+\label{tab:s-heur}
+\small
+\input{tables/heur_params}
+\end{table}
+
+\section{Checkpoint selection}\label{sec:s-ckpt}
+Table~\ref{tab:s-ckpt} compares, for each learned policy, the validation-selected checkpoint (primary results) with the final iterate after 5000 episodes. Selection improves both agents, which is consistent with the policy oscillation visible in Fig.~\ref{fig:s-train}. The ranking AA-DQN $>$ DQN holds for both checkpoint choices.
+
+\begin{table}[h]
+\centering
+\caption{Test performance (500 days) of validation-selected versus final-iterate checkpoints (mean $\pm$ s.d.\ over ten seeds).}
+\label{tab:s-ckpt}
+\small
+\input{tables/final_vs_best}
+\end{table}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=\textwidth]{figures/fig_training_dynamics.pdf}
+\caption{Training return (left; 50-episode moving average, $\epsilon$-greedy) and Huber TD loss (right) for DQN and AA-DQN (mean $\pm$ s.d.\ over ten seeds).}
+\label{fig:s-train}
+\end{figure}
+
+\section{Component and sensitivity analysis}\label{sec:s-comp}
+Table~\ref{tab:s-comp} reproduces the component study of the main text with all configurations, including the history length $k$ and the recurrent (GRU) encoder.
+
+\begin{table}[h]
+\centering
+\caption{Component ablation and sensitivity (mean $\pm$ s.d.\ over seeds; 500 test days).}
+\label{tab:s-comp}
+\small
+\resizebox{\textwidth}{!}{\input{tables/component}}
+\end{table}
+
+\section{Audit trail of the baseline set and action space}\label{sec:s-audit}
+For transparency, we document a design change made during the study. In the first version of the experiments, the agent's action set contained only the intensity actions \{\textsc{easy}, \textsc{hard}, \textsc{break}\} of the original formulation, with EDF dispatch within the chosen class. The rule-based baselines were EDF-based (EDF-Periodic, EDF-Threshold, Cog-Heuristic). A pre-submission review argued that SPT-based rest heuristics should also be included, because SPT was the best classical rule in the static-capacity ablation. When added, SPT-Threshold obtained a higher test return than the intensity-only agent. The reason was structural: that agent could not express SPT sequencing. We therefore adopted the hybrid action set, in which every baseline is representable, added the observation of each class's shortest remaining work, set the training budget to 5000 episodes (the upper end of the range in our original protocol), and re-ran all experiments. To avoid over-fitting the design to the test set, this decision was made once, and no further design changes were made after the final runs were launched. The intensity-only agent trained under the final protocol is reported as a component ablation (Table~\ref{tab:s-comp}).
+
+\section{Full robustness results}\label{sec:s-robust}
+Table~\ref{tab:s-robust} reports the return and on-time rate of every method under each zero-shot test condition. Learned policies are averaged over training seeds, and heuristics use the parameters tuned in the nominal environment.
+
+\begin{table}[h]
+\centering
+\caption{Zero-shot robustness: return / on-time rate on 500 test days per condition. Bold marks the best return.}
+\label{tab:s-robust}
+\small
+\resizebox{\textwidth}{!}{\input{tables/robustness}}
+\end{table}
+
+\section{Reward-weight sweep}\label{sec:s-pareto}
+\begin{table}[h]
+\centering
+\caption{AA-DQN as a function of the fatigue weight $\lambda$ (attention weight $\mu=\lambda/2$; mean $\pm$ s.d.\ over three seeds).}
+\label{tab:s-pareto}
+\small
+\input{tables/pareto}
+\end{table}
