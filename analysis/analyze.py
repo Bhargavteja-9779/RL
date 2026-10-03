@@ -632,6 +632,7 @@ def main():
         print(b.to_string())
     compute_cost(recs)
     print(final_vs_best(recs).to_string())
+    heuristic_params_table()
     write_numbers()
 
 
@@ -719,3 +720,25 @@ def write_numbers():
         lines.append(f"\\newcommand{{\\{k}}}{{{v}}}")
     (ROOT / "paper" / "numbers.tex").write_text("\n".join(lines) + "\n")
     return N
+
+
+def heuristic_params_table():
+    labels = {"full": "Full model", "no_obs_noise": "No observation noise", "no_circadian": "No circadian process",
+              "no_cognition": "Static capacity", "task_reward_only": "Task-only reward", "lam0.05": r"$\lambda=0.05$",
+              "lam0.2": r"$\lambda=0.2$", "lam0.4": r"$\lambda=0.4$"}
+    lines = [r"\begin{tabular}{lccc}", r"\toprule",
+             r"Variant & EDF-Periodic ($p$) & EDF-Threshold ($\tau_F,\tau_A$) & Cog-Heuristic ($\tau_F,\tau_A,\tau_H$) \\",
+             r"\midrule"]
+    for v, lab in labels.items():
+        f = RES / "heuristics" / f"{v}_params.json"
+        if not f.exists():
+            continue
+        P = json.loads(f.read_text())
+        pp = P["EDF-Periodic"]["params"]
+        pt = P["EDF-Threshold"]["params"]
+        pc = P["Cog-Heuristic"]["params"]
+        g = lambda x: "off" if x > 1 else f"{x:g}"
+        lines.append(f"{lab} & {pp['period']} & ({g(pt['tau_f'])}, {pt['tau_a']:g}) & "
+                     f"({g(pc['tau_f'])}, {pc['tau_a']:g}, {pc['tau_h']:g})" + r" \\")
+    lines += [r"\bottomrule", r"\end{tabular}"]
+    (TAB / "heur_params.tex").write_text("\n".join(lines))
