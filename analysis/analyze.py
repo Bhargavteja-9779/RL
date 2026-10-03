@@ -216,15 +216,18 @@ def main_results(recs):
     (TAB / "main_results.tex").write_text("\n".join(lines))
 
     t = tests["return"].merge(tests["on_time_rate"], on="baseline", suffixes=("_r", "_o"))
-    lines = [r"\begin{tabular}{lcccccc}", r"\toprule",
-             r" & \multicolumn{3}{c}{Episode return} & \multicolumn{3}{c}{On-time completion rate} \\",
-             r"\cmidrule(lr){2-4}\cmidrule(lr){5-7}",
-             r"AA-DQN vs. & $\Delta$ [95\% CI] & $r_{rb}$ & $p_{\mathrm{Holm}}$ & $\Delta$ [95\% CI] & $r_{rb}$ & $p_{\mathrm{Holm}}$ \\",
+    t = t.merge(tests["weighted_on_time"].add_suffix("_w").rename(columns={"baseline_w": "baseline"}), on="baseline")
+    lines = [r"\begin{tabular}{lccccccccc}", r"\toprule",
+             r" & \multicolumn{3}{c}{Episode return} & \multicolumn{3}{c}{On-time rate (pp)} & \multicolumn{3}{c}{Weighted on-time rate (pp)} \\",
+             r"\cmidrule(lr){2-4}\cmidrule(lr){5-7}\cmidrule(lr){8-10}",
+             r"AA-DQN vs. & $\Delta$ [95\% CI] & $r_{rb}$ & $p_{\mathrm{Holm}}$ & $\Delta$ [95\% CI] & $r_{rb}$ & $p_{\mathrm{Holm}}$ & $\Delta$ [95\% CI] & $r_{rb}$ & $p_{\mathrm{Holm}}$ \\",
              r"\midrule"]
     for _, r in t.iterrows():
-        lines.append(f"{r.baseline} & {r.mean_diff_r:+.2f} [{r.diff_lo_r:+.2f}, {r.diff_hi_r:+.2f}] & {r.rank_biserial_r:.2f} & "
-                     f"{fmt_p(r.p_holm_r)} & {r.mean_diff_o:+.3f} [{r.diff_lo_o:+.3f}, {r.diff_hi_o:+.3f}] & "
-                     f"{r.rank_biserial_o:.2f} & {fmt_p(r.p_holm_o)}" + r" \\")
+        cells = [r.baseline]
+        for suf, sc, dg in (("_r", 1, 2), ("_o", 100, 1), ("_w", 100, 1)):
+            cells += [f"{sc * r['mean_diff' + suf]:+.{dg}f} [{sc * r['diff_lo' + suf]:+.{dg}f}, {sc * r['diff_hi' + suf]:+.{dg}f}]",
+                      f"{r['rank_biserial' + suf]:.2f}", fmt_p(r["p_holm" + suf])]
+        lines.append(" & ".join(cells) + r" \\")
     lines += [r"\bottomrule", r"\end{tabular}"]
     (TAB / "stat_tests.tex").write_text("\n".join(lines))
     return rl, heur, s, tests
@@ -269,17 +272,17 @@ def fig_curves(recs, heur):
     params = json.loads((RES / "heuristics" / "full_params.json").read_text())
     env = CognitiveSchedulingEnv(make_cfg("full"))
     ref = {}
-    for h, pol in (("EDF-Periodic", CLASSES["EDF-Periodic"](**params["EDF-Periodic"]["params"])), ("EDF", EDF())):
+    for h, pol in (("SPT-Threshold", CLASSES["SPT-Threshold"](**params["SPT-Threshold"]["params"])), ("EDF", EDF())):
         rows = run_policy(env, pol, VALIDATION)
         ref[h] = {k: np.mean([r[k] for r in rows]) for k in ("return", "on_time_rate")}
     for ax, k, lab in zip(axes, ("return", "on_time_rate"), ("Validation return", "Validation on-time rate")):
-        for h, ls, txt in (("EDF-Periodic", "--", "Best tuned heuristic"), ("EDF", "-.", "EDF")):
+        for h, ls, txt in (("SPT-Threshold", "--", "SPT-Threshold"), ("EDF", "-.", "EDF")):
             v = ref[h][k]
             ax.axhline(v, color=C[h], lw=1.0, ls=ls)
-            ax.text(3000, v, " " + txt, color=INK2, fontsize=6.5, va="center", ha="left")
+            ax.text(5000, v, " " + txt, color=INK2, fontsize=6.5, va="center", ha="left")
         ax.set_xlabel("Training episode (simulated workdays)")
         ax.set_ylabel(lab)
-        ax.set_xlim(0, 3000)
+        ax.set_xlim(0, 5000)
     axes[0].legend(loc="lower right")
     fig.tight_layout(w_pad=4)
     save(fig, "fig_learning_curves")
@@ -623,6 +626,7 @@ def main():
         print(k)
         print(v.to_string())
     fig_main(s)
+    fig_tradeoff(s)
     fig_curves(recs, heur)
     fig_td(recs)
     print(ablations(recs).to_string())
@@ -679,12 +683,13 @@ def write_numbers():
     N["edfOnTimePct"], N["edfFatigue"] = N["EDFOnTimePct"], N["EDFFatigue"]
     N["fatigueRedVsEdfPct"] = f"{100 * (1 - s.loc['AA-DQN', 'mean_fatigue'] / s.loc['EDF', 'mean_fatigue']):.0f}"
     N["onTimeGainVsEdfPP"] = f"{100 * (s.loc['AA-DQN', 'on_time_rate'] - s.loc['EDF', 'on_time_rate']):.1f}"
-    for metric, tag in (("return", "Ret"), ("on_time_rate", "On"), ("mean_fatigue", "Fat")):
+    for metric, tag in (("return", "Ret"), ("on_time_rate", "On"), ("mean_fatigue", "Fat"), ("weighted_on_time", "WOn")):
         t = pd.read_csv(SUM / f"tests_{metric}.csv").set_index("baseline")
         for b in t.index:
             r = t.loc[b]
-            sc = 100 if metric == "on_time_rate" else 1
-            dg = 1 if metric == "on_time_rate" else (2 if metric == "return" else 3)
+            sc = 100 if metric in ("on_time_rate", "weighted_on_time") else 1
+            dg = 1 if metric in ("on_time_rate", "weighted_on_time") else (2 if metric == "return" else 3)
+            N[f"p{tag}{_cam(b)}"] = r"p_{\mathrm{Holm}}<10^{-4}" if r.p_holm < 1e-4 else rf"p_{{\mathrm{{Holm}}}}={r.p_holm:.2g}"
             k = _cam(b)
             N[f"d{tag}{k}"] = f"{sc * r.mean_diff:.{dg}f}"
             N[f"d{tag}{k}Lo"] = f"{sc * r.diff_lo:.{dg}f}"
@@ -746,3 +751,25 @@ def heuristic_params_table():
                      f"({g(pc['tau_f'])}, {pc['tau_a']:g}, {pc['tau_h']:g})" + r" \\")
     lines += [r"\bottomrule", r"\end{tabular}"]
     (TAB / "heur_params.tex").write_text("\n".join(lines))
+
+
+def fig_tradeoff(s):
+    """Count-based vs difficulty-weighted on-time completion: no single rule is good at both."""
+    fig, ax = plt.subplots(figsize=(W1, 2.8))
+    for _, r in s.iterrows():
+        m = r.method
+        if m in ("Random", "FIFO"):
+            continue
+        ax.errorbar(r.on_time_rate, r.weighted_on_time,
+                    xerr=[[r.on_time_rate - r.on_time_rate_lo], [r.on_time_rate_hi - r.on_time_rate]],
+                    yerr=[[r.weighted_on_time - r.weighted_on_time_lo], [r.weighted_on_time_hi - r.weighted_on_time]],
+                    fmt=MK[m], color=C[m], ms=6 if m == "AA-DQN" else 5, capsize=1.5, lw=0.8, mec=C[m])
+        off = {"AA-DQN": (0, 9), "EDF-Periodic": (-6, 7), "EDF-Threshold": (-9, -6), "SPT-Threshold": (6, 4),
+               "SPT-Periodic": (6, -10), "Cog-Heuristic": (6, -3), "DQN": (-7, -3), "SPT": (7, -3), "EDF": (8, -3)}
+        ha = {"AA-DQN": "center", "EDF-Periodic": "right", "EDF-Threshold": "right", "DQN": "right"}.get(m, "left")
+        ax.annotate(m + (" (ours)" if m == "AA-DQN" else ""), (r.on_time_rate, r.weighted_on_time),
+                    textcoords="offset points", xytext=off.get(m, (4, 3)), fontsize=6.3, color=INK, ha=ha)
+    ax.set_xlabel("On-time rate (share of tasks)")
+    ax.set_ylabel("Difficulty-weighted on-time rate")
+    fig.tight_layout()
+    save(fig, "fig_tradeoff")
