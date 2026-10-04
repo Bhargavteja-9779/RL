@@ -23,14 +23,14 @@ SUM = RES / "summary"
 for d in (FIG, TAB, SUM):
     d.mkdir(parents=True, exist_ok=True)
 
-C = {"AA-DQN": "#2a78d6", "AA-DQN-DR": "#4a3aa7", "DQN": "#eb6834", "Cog-Heuristic": "#008300", "EDF-Threshold": "#eda100",
+C = {"AA-DQN": "#2a78d6", "AA-DQN-3act": "#104281", "AA-DQN-DR": "#4a3aa7", "DQN": "#eb6834", "Cog-Heuristic": "#008300", "EDF-Threshold": "#eda100",
      "EDF-Periodic": "#e87ba4", "SPT-Threshold": "#1baf7a", "SPT-Periodic": "#e34948", "EDF": "#6b6a66", "FIFO": "#9a9993", "SPT": "#52514e", "Random": "#c3c2b7"}
-MK = {"AA-DQN": "o", "AA-DQN-DR": "P", "DQN": "s", "Cog-Heuristic": "^", "EDF-Threshold": "D", "EDF-Periodic": "v",
+MK = {"AA-DQN": "o", "AA-DQN-3act": "d", "AA-DQN-DR": "P", "DQN": "s", "Cog-Heuristic": "^", "EDF-Threshold": "D", "EDF-Periodic": "v",
       "SPT-Threshold": "h", "SPT-Periodic": "<", "EDF": "x",
       "FIFO": "+", "SPT": "*", "Random": "."}
 INK, INK2, GRID = "#0b0b0b", "#52514e", "#e4e3df"
 ORDER = ["Random", "FIFO", "EDF", "SPT", "EDF-Periodic", "EDF-Threshold", "SPT-Periodic", "SPT-Threshold",
-         "Cog-Heuristic", "DQN", "AA-DQN"]
+         "Cog-Heuristic", "DQN", "AA-DQN", "AA-DQN-3act"]
 HEUR = ["Random", "FIFO", "EDF", "SPT", "EDF-Periodic", "EDF-Threshold", "SPT-Periodic", "SPT-Threshold", "Cog-Heuristic"]
 METRICS = ["return", "on_time_rate", "weighted_on_time", "completion_rate", "mean_attention", "mean_fatigue",
            "high_fatigue_frac", "break_frac", "effort"]
@@ -186,8 +186,16 @@ def fmt_p(p):
 # ------------------------------------------------------------------ analyses
 def main_results(recs):
     rl = {m: test_frame(recs, m) for m in ("DQN", "AA-DQN")}
+    sec = test_frame(recs, "AA-DQN-3act")
+    if not sec.empty and sec.train_seed.nunique() >= 10:
+        rl["AA-DQN-3act"] = sec
     heur = heur_frame("full")
     s = summarize(rl, heur)
+    if "AA-DQN-3act" in rl:
+        both = pd.concat([heur, rl["AA-DQN"].groupby("seed").mean(numeric_only=True).reset_index().assign(method="AA-DQN")])
+        for k in ("return", "on_time_rate", "weighted_on_time", "mean_fatigue"):
+            paired_tests(rl["AA-DQN-3act"], both, k, against=["SPT-Threshold", "SPT-Periodic", "EDF-Periodic", "AA-DQN"]
+                         ).to_csv(SUM / f"tests3_{k}.csv", index=False)
     s.to_csv(SUM / "main_summary.csv", index=False)
     tests = {k: paired_tests(rl["AA-DQN"], heur, k) for k in ("return", "on_time_rate", "mean_fatigue", "weighted_on_time", "completion_rate")}
     tests["return_vs_DQN"] = paired_tests(rl["AA-DQN"], pd.concat([rl["DQN"].groupby("seed").mean(numeric_only=True)
@@ -208,7 +216,7 @@ def main_results(recs):
             if k in ("return", "on_time_rate", "weighted_on_time") and np.isclose(r[k], best[k]):
                 v = r"\textbf{" + v + "}"
             cells.append(v)
-        name = r["method"] + (r" (ours)" if r["method"] == "AA-DQN" else "")
+        name = {"AA-DQN": "AA-DQN (ours, primary)", "AA-DQN-3act": "AA-DQN, intensity actions (secondary)"}.get(r["method"], r["method"])
         if r["method"] == "DQN":
             lines.append(r"\midrule")
         lines.append(name + " & " + " & ".join(cells) + r" \\")
@@ -456,7 +464,7 @@ def pareto(recs):
     for _, r in p.iterrows():
         ax.annotate(rf"$\lambda$={r.lam:g}", (r.fat, r.on), textcoords="offset points", xytext=(4, 4), fontsize=6.3,
                     color=INK2)
-    for h in ["EDF", "SPT", "EDF-Periodic", "EDF-Threshold", "Cog-Heuristic"]:
+    for h in ["EDF", "SPT", "EDF-Periodic", "EDF-Threshold", "SPT-Periodic", "SPT-Threshold", "Cog-Heuristic"]:
         ax.plot(heur.loc[h, "mean_fatigue"], heur.loc[h, "on_time_rate"], MK[h], color=C[h], ms=5.5, label=h)
     ax.set_xlabel("Mean fatigue over the workday")
     ax.set_ylabel("On-time completion rate")
@@ -699,6 +707,19 @@ def write_numbers():
             N[f"rb{tag}{k}"] = f"{r.rank_biserial:.2f}"
             N[f"win{tag}{k}Pct"] = f"{100 * r.win_rate:.1f}"
             N[f"seeds{tag}{k}"] = f"{int(r.seeds_better)}"
+    for metric, tag in (("return", "Ret"), ("on_time_rate", "On"), ("weighted_on_time", "WOn"), ("mean_fatigue", "Fat")):
+        f = SUM / f"tests3_{metric}.csv"
+        if not f.exists():
+            continue
+        t3 = pd.read_csv(f).set_index("baseline")
+        for b in t3.index:
+            r = t3.loc[b]
+            sc = 100 if metric in ("on_time_rate", "weighted_on_time") else 1
+            dg = 1 if sc == 100 else (2 if metric == "return" else 3)
+            k = "Sec" + tag + _cam(b)
+            N[k], N[k + "Lo"], N[k + "Hi"] = f"{sc * r.mean_diff:.{dg}f}", f"{sc * r.diff_lo:.{dg}f}", f"{sc * r.diff_hi:.{dg}f}"
+            N["p" + k] = r"p_{\mathrm{Holm}}<10^{-4}" if r.p_holm < 1e-4 else rf"p_{{\mathrm{{Holm}}}}={r.p_holm:.2g}"
+            N["seeds" + k] = f"{int(r.seeds_better)}"
     t = pd.read_csv(SUM / "tests_return_vs_DQN.csv").iloc[0]
     N["dRetVsDqn"], N["dRetVsDqnLo"], N["dRetVsDqnHi"] = f"{t.mean_diff:.2f}", f"{t.diff_lo:.2f}", f"{t.diff_hi:.2f}"
     N["winRetVsDqnPct"] = f"{100 * t.win_rate:.1f}"
@@ -715,6 +736,16 @@ def write_numbers():
             N[f"abl{k}P"] = "<10^{-4}" if r.p < 1e-4 else f"={r.p:.3f}"
             N[f"abl{k}POn"] = "<10^{-4}" if r.p_o < 1e-4 else f"={r.p_o:.3f}"
             N[f"abl{k}Fatigue"] = f"{r.rl_fatigue:.3f}"
+    if (SUM / "pareto.csv").exists():
+        pp = pd.read_csv(SUM / "pareto.csv")
+        for _, r in pp.iterrows():
+            k = "par" + _cam(f"{r.lam:g}".replace(".", "p"))
+            N[k + "OnPct"], N[k + "Fat"], N[k + "BrkPct"] = f"{100 * r.on:.1f}", f"{r.fat:.3f}", f"{100 * r.brk:.1f}"
+    if (SUM / "component.csv").exists():
+        cc = pd.read_csv(SUM / "component.csv")
+        for _, r in cc.iterrows():
+            k = "comp" + _cam(r["name"])
+            N[k + "Ret"], N[k + "RetSD"], N[k + "OnPct"] = f"{r.ret:.2f}", f"{r.ret_sd:.2f}", f"{100 * r.on:.1f}"
     if (SUM / "compute.csv").exists():
         c = pd.read_csv(SUM / "compute.csv").set_index("method")
         N["trainTimeAA"] = f"{c.loc['AA-DQN', 'train_time_s']:.0f}"

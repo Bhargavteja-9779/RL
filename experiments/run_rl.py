@@ -40,6 +40,10 @@ def jobs():
     for name, (cfg, over) in comp.items():
         for s in range(3):
             J.append(("component", name, cfg, "full", over, s))
+    # secondary analysis: the intensity-only variant was strongest in the 3-seed component study,
+    # so it is re-evaluated with the full 10-seed protocol rather than promoted on 3 seeds
+    for s in range(3, 10):
+        J.append(("secondary", "AA-DQN-3act", comp["AA-DQN-3act"][0], "full", comp["AA-DQN-3act"][1], s))
     return J
 
 

@@ -85,12 +85,13 @@ def _robust_one(cond):
     for p in pols:
         for r in run_policy(env, p, TEST):
             rows.append({"condition": cond, "method": p.name, "train_seed": -1, **r})
-    for name, nseeds in (("DQN", 10), ("AA-DQN", 10), ("AA-DQN-DR", 5)):
+    for name, nseeds in (("DQN", 10), ("AA-DQN", 10), ("AA-DQN-DR", 5), ("AA-DQN-3act", 10)):
         for s in range(nseeds):
             ck = torch.load(RES / "runs" / f"{name}_s{s}.pt", weights_only=False)
             ag = DQNAgent(AgentConfig(**ck["cfg"]), seed=s, n_actions=ck["n_actions"])
             ag.q.load_state_dict(ck["q"])
-            for r in evaluate_agent(ag, cfg, TEST):
+            acfg = cfg.with_(action_set="intensity") if ck["n_actions"] == 3 else cfg
+            for r in evaluate_agent(ag, acfg, TEST):
                 rows.append({"condition": cond, "method": name, "train_seed": s, **r})
     return cond, rows
 
@@ -120,13 +121,14 @@ def traces():
     for p in [EDF()] + [CLASSES[h](**params[h]["params"]) for h in CLASSES]:
         _, tr = run_policy(env, p, TEST, keep_traces=True)
         out[p.name] = tr
-    for name in ("DQN", "AA-DQN"):
+    for name in ("DQN", "AA-DQN", "AA-DQN-3act"):
         trs = []
         for s in range(10):
             ck = torch.load(RES / "runs" / f"{name}_s{s}.pt", weights_only=False)
             ag = DQNAgent(AgentConfig(**ck["cfg"]), seed=s, n_actions=ck["n_actions"])
             ag.q.load_state_dict(ck["q"])
-            _, tr = evaluate_agent(ag, cfg, TEST, keep_traces=True)
+            acfg = cfg.with_(action_set="intensity") if ck["n_actions"] == 3 else cfg
+            _, tr = evaluate_agent(ag, acfg, TEST, keep_traces=True)
             trs += tr
         out[name] = trs
     arrays = {}
