@@ -18,3 +18,4 @@ results/runs_v1_3action/
 results/*.log
 results/traces.npz
 paper/review/*.aux
+results/robustness.csv

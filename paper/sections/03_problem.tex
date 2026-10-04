@@ -2,7 +2,7 @@
 
 We consider a single worker who processes a stream of tasks during one workday. A scheduler, which could be a digital assistant, a workflow-management system or a supervisory controller in a human--robot cell, decides at regular intervals what the worker should do next: start or continue an easy task, a hard task, or take a short break. The worker's capacity depends on a latent cognitive state that evolves with the schedule. Table~\ref{tab:notation} summarises the notation and Table~\ref{tab:params} lists the parameter values.
 
-\begin{table}[t]
+\begin{table}[!htbp]
 \centering
 \caption{Notation.}
 \label{tab:notation}
@@ -67,7 +67,7 @@ work units in slot $t$, with $\rho_0=1$ and $\kappa=0.5$. The exponent makes har
 \paragraph{Initial state and behavioural plausibility}
 Each day starts with $H_0\sim\mathcal U[0.8,1.0]$ and $F_0\sim\mathcal U[0,0.15]$. Parameters were chosen \emph{a priori} to reproduce qualitative patterns reported in the time-on-task and fatigue literature rather than fitted to a particular dataset. Under continuous work without breaks, attention falls from $\approx\!1.0$ to $\approx\!0.3$ by the end of the day, with a visible early-afternoon trough, and fatigue rises to $\approx\!0.85$. One 10-minute break recovers 30\% of the attentional deficit and 20\% of accumulated fatigue (Fig.~\ref{fig:dynamics}b,c). Because no single parameterisation can represent all workers, Section~\ref{sec:robust} evaluates the policies zero-shot on resilient and fatigue-prone profiles in which all four rate parameters are scaled by $\pm30\%$.
 
-\begin{figure}[t]
+\begin{figure}[!htbp]
 \centering
 \includegraphics[width=\textwidth]{figures/fig_dynamics.pdf}
 \caption{Simulator dynamics. (a) Circadian modulation $c(h)$ with a late-morning peak and post-lunch dip. (b) Effective attention and fatigue on one held-out test day under EDF without breaks. (c) The same day under EDF with a break after every four work slots (shaded bands mark breaks). Breaks keep attention high and fatigue low at the cost of working time.}
@@ -102,7 +102,7 @@ r_t=\underbrace{\sum_{i\in\mathcal C_t}(1+d_i)\big[\mathbb 1(t+1\le D_i)+0.25\,\
 \end{equation}
 where $\mathcal C_t$ is the set of tasks completed in slot $t$, $\mathcal M_t$ is the set of tasks whose deadline expires unfinished at the end of slot $t$, $\mu=0.05$ and $\lambda=0.10$. Harder tasks are worth more, late completion retains a quarter of the value, and each missed deadline costs $0.5$. The attention and fatigue terms express the organisation's preference for sustainable work. Because such terms can change the optimal policy \cite{ng1999}, we (i) report reward-independent operational metrics (on-time rate, completion, fatigue exposure) alongside the return, (ii) train an agent with $\lambda=\mu=0$ to show that the learned behaviour is driven by the dynamics rather than by the reward terms, and (iii) sweep $\lambda$ to trace the productivity--fatigue Pareto front. The objective is to find a policy $\pi$ that maps observation histories to actions and maximises $\mathbb E_\pi\big[\sum_{t=0}^{T-1}\gamma_{\mathrm{RL}}^t r_t\big]$.
 
-\begin{table}[t]
+\begin{table}[!htbp]
 \centering
 \caption{Nominal simulator parameters and their rationale.}
 \label{tab:params}

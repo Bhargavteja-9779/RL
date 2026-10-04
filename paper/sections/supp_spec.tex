@@ -4,9 +4,9 @@
 Each episode (workday) is generated from a single integer seed that fixes, through independent draws from one pseudo-random generator: the arrival slots, difficulties and slack of all tasks; the initial state $(H_0,F_0)$; the process-noise sequence $\xi_{0:T-1}$; and the observation-noise sequence $\epsilon_{0:T}$. Because the noise sequences are pre-drawn, two policies evaluated on the same seed experience the same exogenous randomness (common random numbers), and their outcomes differ only through their decisions. Within slot $t$:
 \begin{enumerate}[label=\arabic*.]
 \item Tasks with $a_i\le t$ become available.
-\item The scheduler receives $o_t$ (main text, Eq.~6), computed from $A_t$, $F_t$ and $\epsilon_t$.
-\item The action is mapped to a task (EDF within the chosen class, with a fallback to the other class) or to rest.
-\item If working on task $i$: the remaining work is decreased by $\rho_t$ (Eq.~5); if it reaches zero, the task is completed at $t+1$ and the task reward is credited; $H$ and $F$ are updated with the work branch of Eqs.~(2)--(3). If resting: the rest branch is applied.
+\item The scheduler receives the 13-dimensional observation $o_t$ (main text, Eq.~6), computed from $A_t$, $F_t$, $\epsilon_t$ and the queue.
+\item The action is mapped to a task (\textsc{easy}/\textsc{hard}: EDF within the chosen class, with a fallback to the other class; \textsc{edf}/\textsc{spt}: the earliest-deadline or shortest-remaining task overall) or to rest.
+\item If working on task $i$: the remaining work is decreased by $\rho_t$ (Eq.~4); if it reaches zero, the task is completed at $t+1$ and the task reward is credited; $H$ and $F$ are updated with the work branch of Eqs.~(2)--(3). If resting: the rest branch is applied.
 \item Process noise is added to $H$, and both states are clipped to $[0,1]$.
 \item The cognitive reward $\mu A_{t+1}-\lambda F_{t+1}$ is added, and every unfinished task whose deadline equals $t+1$ incurs the miss penalty (once).
 \end{enumerate}
@@ -37,7 +37,7 @@ All experiments can be reproduced with the released code:
 pip install -r requirements.txt
 python -m pytest                                 # simulator unit tests
 python -m experiments.run_eval heuristics        # tune + test rule-based baselines
-python -m experiments.run_rl --workers 4         # train all 107 agents
+python -m experiments.run_rl --workers 4         # train all 82 agents
 python -m experiments.run_eval robustness        # zero-shot robustness study
 python -m experiments.run_eval traces            # behavioural traces
 python -m analysis.analyze                       # all tables, figures, statistics

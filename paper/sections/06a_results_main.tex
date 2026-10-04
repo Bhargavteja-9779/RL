@@ -3,7 +3,7 @@
 \subsection{Learning dynamics}
 Figure~\ref{fig:curves} shows greedy validation performance during training, averaged over ten seeds. AA-DQN improves rapidly during the first 1000 episodes and slowly thereafter; it is still improving at the end of the 5000-episode budget. The seed-averaged curve of the \emph{current} parameters remains below the best tuned heuristic (SPT-Threshold) throughout training, in both return and on-time rate. This average, however, hides substantial variation between checkpoints within each run: the best checkpoints of every seed reach the heuristic's level, while neighbouring checkpoints fall below it. Such policy oscillation is typical of value-based deep RL with a constant learning rate \cite{henderson2018}, and it motivates selecting checkpoints on held-out validation days. Validation-selected checkpoints were taken at episode \AADQNBestEp{} on average for AA-DQN and \DQNBestEp{} for DQN. Because validation and test days are disjoint, the test results below are not inflated by this selection. The vanilla DQN learns more slowly and plateaus well below AA-DQN. Its training return is also less stable (Supplementary Fig.~S2), consistent with the over-estimation that Double Q-learning mitigates \cite{vanhasselt2016} and with the known weakness of memoryless policies in POMDPs \cite{singh1994}.
 
-\begin{figure}[t]
+\begin{figure}[!htbp]
 \centering
 \includegraphics[width=\textwidth]{figures/fig_learning_curves.pdf}
 \caption{Greedy validation performance of the current parameters during training (mean of ten seeds; shaded bands are 95\% confidence intervals). Horizontal lines show the best tuned heuristic (SPT-Threshold) and EDF on the same 100 validation days. Test results use the validation-selected checkpoint of each seed.}
@@ -11,7 +11,7 @@ Figure~\ref{fig:curves} shows greedy validation performance during training, ave
 \end{figure}
 
 \subsection{Comparison with baselines}\label{sec:main}
-Table~\ref{tab:main} and Figs.~\ref{fig:main}--\ref{fig:tradeoff} report performance on the 500 held-out test days, and Table~\ref{tab:tests} gives the paired statistical comparisons. Four findings stand out.
+Table~\ref{tab:main} and Figs.~\ref{fig:main}--\ref{fig:tradeoff} report performance on the 500 held-out test days, and Table~\ref{tab:tests} gives the paired statistical comparisons for the pre-specified primary agent. The intensity-only variant shown in the same table and figures is a secondary analysis, discussed in Section~\ref{sec:secondary}. Four findings stand out.
 
 \emph{(i) Capacity-agnostic rules fail under cognitive dynamics.} The rules that never rest (FIFO, EDF, SPT) drive the worker into a low-capacity regime: mean fatigue reaches 0.48--0.55, attention falls to 0.46--0.54, and EDF completes only \EDFOnTimePct\% of tasks on time. EDF performs particularly poorly, which reproduces the overload domino effect known from real-time scheduling \cite{buttazzo2011}: once capacity falls, chasing the most urgent task means working on tasks that will be late anyway. SPT limits the damage by finishing short tasks first (\SPTOnTimePct\%).
 
@@ -21,9 +21,9 @@ Table~\ref{tab:main} and Figs.~\ref{fig:main}--\ref{fig:tradeoff} report perform
 
 \emph{(iv) The learned policy pays for this with somewhat more fatigue and fewer late completions.} AA-DQN rests less than the tuned heuristics (\AADQNBreakPct\% versus \bestHeurBreakPct\% of slots for \bestHeur{}). Its mean fatigue is therefore higher (\aaFatigue{} versus \bestHeurFatigue), although still \fatigueRedVsEdfPct\% below EDF, and fatigue never exceeds 0.7. Because it focuses effort on tasks that can still meet their deadline, it also completes fewer tasks eventually (\AADQNComplPct\% versus \SPTThresholdComplPct\% for \bestHeur{}, counting late completions). This explains why its return, which rewards late completions and low fatigue, is not higher despite the higher on-time rate. Section~\ref{sec:pareto} shows that the fatigue level can be shifted by the reward weight.
 
-Relative to the memoryless vanilla DQN, adding memory, Double Q-learning and the dueling head increases the return by \dRetVsDqn{} ([\dRetVsDqnLo, \dRetVsDqnHi]), with a win on \winRetVsDqnPct\% of test days. The vanilla DQN would rank only seventh among the eleven methods, which shows that a naive application of DQN to this POMDP would wrongly suggest that learning is not competitive. Validation-based checkpoint selection matters for both agents (Supplementary Table~S3): the final-iterate AA-DQN has a return of \AADQNFinalReturn{} and an on-time rate of \AADQNFinalOnTimePct\%, and the final-iterate DQN has a return of \DQNFinalReturn. We report the validation-selected policies as primary results because the heuristics received an equivalent selection step (grid search) on their own held-out days.
+Relative to the memoryless vanilla DQN, adding memory, Double Q-learning and the dueling head increases the return by \dRetVsDqn{} ([\dRetVsDqnLo, \dRetVsDqnHi]), with a win on \winRetVsDqnPct\% of test days. The vanilla DQN would rank only seventh among the eleven methods, which shows that a naive application of DQN to this POMDP would wrongly suggest that learning is not competitive. Validation-based checkpoint selection matters for both agents (Supplementary Table~S2): the final-iterate AA-DQN has a return of \AADQNFinalReturn{} and an on-time rate of \AADQNFinalOnTimePct\%, and the final-iterate DQN has a return of \DQNFinalReturn. We report the validation-selected policies as primary results because the heuristics received an equivalent selection step (grid search) on their own held-out days.
 
-\begin{table}[t]
+\begin{table}[!htbp]
 \centering
 \caption{Performance on 500 held-out test days (nominal environment). Learned policies: mean $\pm$ s.d.\ across ten training seeds of the per-seed test means. Heuristics: mean $\pm$ s.d.\ across test days (they are deterministic given the day). Bold marks the best value in each column.}
 \label{tab:main}
@@ -32,21 +32,21 @@ Relative to the memoryless vanilla DQN, adding memory, Double Q-learning and the
 \resizebox{\textwidth}{!}{\input{tables/main_results}}
 \end{table}
 
-\begin{figure}[t]
+\begin{figure}[!htbp]
 \centering
 \includegraphics[width=\textwidth]{figures/fig_main_comparison.pdf}
 \caption{Test performance with 95\% bootstrap confidence intervals (learned policies: across seeds; heuristics: across days). The dotted line marks the best heuristic return.}
 \label{fig:main}
 \end{figure}
 
-\begin{figure}[t]
+\begin{figure}[!htbp]
 \centering
 \includegraphics[width=0.62\textwidth]{figures/fig_tradeoff.pdf}
-\caption{Count-based versus difficulty-weighted on-time completion (95\% CIs). SPT-based rules complete many tasks but neglect hard ones; EDF-based rules protect hard tasks but complete fewer. AA-DQN is the only policy near the best value on both axes.}
+\caption{Count-based versus difficulty-weighted on-time completion (95\% CIs). SPT-based rules complete many tasks but neglect hard ones; EDF-based rules protect hard tasks but complete fewer. The two AA-DQN variants are the only policies near the best value on both axes.}
 \label{fig:tradeoff}
 \end{figure}
 
-\begin{table}[t]
+\begin{table}[!htbp]
 \centering
 \caption{Paired comparison of AA-DQN with each baseline on 500 common-random-number test days: mean difference with 95\% bootstrap CI (on-time rates in percentage points), matched-pairs rank-biserial correlation $r_{rb}$ (positive favours AA-DQN), and Holm-adjusted Wilcoxon signed-rank $p$-values.}
 \label{tab:tests}

@@ -29,6 +29,7 @@ MK = {"AA-DQN": "o", "AA-DQN-3act": "d", "AA-DQN-DR": "P", "DQN": "s", "Cog-Heur
       "SPT-Threshold": "h", "SPT-Periodic": "<", "EDF": "x",
       "FIFO": "+", "SPT": "*", "Random": "."}
 INK, INK2, GRID = "#0b0b0b", "#52514e", "#e4e3df"
+DISPLAY = {"AA-DQN": "AA-DQN (ours)", "AA-DQN-3act": "AA-DQN, intensity (ours)", "AA-DQN-DR": "AA-DQN, randomised (ours)"}
 ORDER = ["Random", "FIFO", "EDF", "SPT", "EDF-Periodic", "EDF-Threshold", "SPT-Periodic", "SPT-Threshold",
          "Cog-Heuristic", "DQN", "AA-DQN", "AA-DQN-3act"]
 HEUR = ["Random", "FIFO", "EDF", "SPT", "EDF-Periodic", "EDF-Threshold", "SPT-Periodic", "SPT-Threshold", "Cog-Heuristic"]
@@ -253,7 +254,7 @@ def fig_main(s):
                         ms=5 if m != "AA-DQN" else 6.5, capsize=2, lw=1.2, mec=C[m])
         ax.set_xlabel(lab)
         ax.grid(axis="y", visible=False)
-    axes[0].set_yticks(y, [m + (" (ours)" if m == "AA-DQN" else "") for m in ylab])
+    axes[0].set_yticks(y, [DISPLAY.get(m, m) for m in ylab])
     best_h = s[s.method.isin(HEUR)]["return"].max()
     axes[0].axvline(best_h, color=INK2, lw=0.6, ls=":")
     fig.tight_layout(w_pad=1.0)
@@ -374,13 +375,15 @@ def ablations(recs):
 def robustness():
     f = RES / "robustness.csv"
     if not f.exists():
+        f = RES / "robustness.csv.gz"
+    if not f.exists():
         return None
     df = pd.read_csv(f)
     agg = df.groupby(["condition", "method", "train_seed"])[["return", "on_time_rate", "mean_fatigue"]].mean().reset_index()
     out = agg.groupby(["condition", "method"]).agg(ret=("return", "mean"), ret_sd=("return", "std"),
                                                    on=("on_time_rate", "mean"), fat=("mean_fatigue", "mean")).reset_index()
     out.to_csv(SUM / "robustness.csv", index=False)
-    meths = [m for m in ["AA-DQN", "DQN", "SPT-Threshold", "EDF-Threshold", "EDF-Periodic", "AA-DQN-DR", "EDF"]
+    meths = [m for m in ["AA-DQN", "DQN", "SPT-Threshold", "EDF-Threshold", "EDF-Periodic", "AA-DQN-DR", "AA-DQN-3act", "EDF"]
              if m in set(df.method)]
     fig, axes = plt.subplots(1, 3, figsize=(W2, 2.55), gridspec_kw={"width_ratios": [1.3, 1, 1]})
     sig = [0.0, 0.05, 0.1, 0.2, 0.3]
@@ -404,7 +407,7 @@ def robustness():
     ax.set_xlabel(r"Observation-noise s.d. $\sigma_o$ at test time")
     ax.set_ylabel("Episode return")
     handles, labels = ax.get_legend_handles_labels()
-    fig.legend(handles, [l + (" (ours)" if l == "AA-DQN" else "") for l in labels], loc="upper center",
+    fig.legend(handles, [DISPLAY.get(l, l) for l in labels], loc="upper center",
                ncol=len(labels), fontsize=6.3, bbox_to_anchor=(0.5, 1.07), handlelength=1.5, columnspacing=1.0)
     for ax, conds, labs, title in ((axes[1], ["profile_resilient", "noise0.1", "profile_fatigue_prone"],
                                     ["Resilient", "Nominal", "Fatigue-prone"], "Worker profile"),
@@ -461,14 +464,15 @@ def pareto(recs):
     fig, ax = plt.subplots(figsize=(W1, 2.6))
     ax.errorbar(p.fat, p.on, xerr=p.fat_sd, yerr=p.on_sd, color=C["AA-DQN"], marker="o", ms=4.5, capsize=2, lw=1.4,
                 label=r"AA-DQN, $\lambda\in\{0,0.05,0.1,0.2,0.4\}$")
+    offs = {0.0: (9, -3), 0.05: (-4, -15), 0.1: (2, 6), 0.2: (2, 6), 0.4: (4, 6)}
     for _, r in p.iterrows():
-        ax.annotate(rf"$\lambda$={r.lam:g}", (r.fat, r.on), textcoords="offset points", xytext=(4, 4), fontsize=6.3,
-                    color=INK2)
+        ax.annotate(rf"$\lambda$={r.lam:g}", (r.fat, r.on), textcoords="offset points", xytext=offs.get(r.lam, (4, 4)),
+                    fontsize=6.3, color=INK2, ha="right" if r.lam == 0.05 else "left")
     for h in ["EDF", "SPT", "EDF-Periodic", "EDF-Threshold", "SPT-Periodic", "SPT-Threshold", "Cog-Heuristic"]:
         ax.plot(heur.loc[h, "mean_fatigue"], heur.loc[h, "on_time_rate"], MK[h], color=C[h], ms=5.5, label=h)
     ax.set_xlabel("Mean fatigue over the workday")
     ax.set_ylabel("On-time completion rate")
-    ax.legend(fontsize=6, loc="lower right")
+    ax.legend(fontsize=6, loc="lower left")
     fig.tight_layout()
     save(fig, "fig_pareto")
     lines = [r"\begin{tabular}{cccccc}", r"\toprule",
@@ -654,9 +658,6 @@ def main():
     write_numbers()
 
 
-if __name__ == "__main__":
-    main()
-
 
 def _cam(s):
     import re
@@ -797,12 +798,16 @@ def fig_tradeoff(s):
                     xerr=[[r.on_time_rate - r.on_time_rate_lo], [r.on_time_rate_hi - r.on_time_rate]],
                     yerr=[[r.weighted_on_time - r.weighted_on_time_lo], [r.weighted_on_time_hi - r.weighted_on_time]],
                     fmt=MK[m], color=C[m], ms=6 if m == "AA-DQN" else 5, capsize=1.5, lw=0.8, mec=C[m])
-        off = {"AA-DQN": (0, 9), "EDF-Periodic": (-6, 7), "EDF-Threshold": (-9, -6), "SPT-Threshold": (6, 4),
+        off = {"AA-DQN-3act": (-7, 4), "AA-DQN": (0, -13), "EDF-Periodic": (-6, 7), "EDF-Threshold": (-9, -6), "SPT-Threshold": (6, 4),
                "SPT-Periodic": (6, -10), "Cog-Heuristic": (6, -3), "DQN": (-7, -3), "SPT": (7, -3), "EDF": (8, -3)}
-        ha = {"AA-DQN": "center", "EDF-Periodic": "right", "EDF-Threshold": "right", "DQN": "right"}.get(m, "left")
-        ax.annotate(m + (" (ours)" if m == "AA-DQN" else ""), (r.on_time_rate, r.weighted_on_time),
+        ha = {"AA-DQN-3act": "right", "AA-DQN": "center", "EDF-Periodic": "right", "EDF-Threshold": "right", "DQN": "right"}.get(m, "left")
+        ax.annotate(DISPLAY.get(m, m), (r.on_time_rate, r.weighted_on_time),
                     textcoords="offset points", xytext=off.get(m, (4, 3)), fontsize=6.3, color=INK, ha=ha)
     ax.set_xlabel("On-time rate (share of tasks)")
     ax.set_ylabel("Difficulty-weighted on-time rate")
     fig.tight_layout()
     save(fig, "fig_tradeoff")
+
+
+if __name__ == "__main__":
+    main()

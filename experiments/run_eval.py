@@ -102,7 +102,7 @@ def robustness(workers=4):
         for cond, rows in pool.imap_unordered(_robust_one, list(ROBUST)):
             print("robustness", cond, flush=True)
             allrows += rows
-    pd.DataFrame(allrows).to_csv(RES / "robustness.csv", index=False)
+    pd.DataFrame(allrows).to_csv(RES / "robustness.csv.gz", index=False)
 
 
 def traces():

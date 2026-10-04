@@ -1,2 +1,21 @@
 \section{Discussion}\label{sec:discussion}
+
+\subsection{When and why does learning help?}
+The experiments support a more differentiated picture than ``reinforcement learning beats heuristics''. Four observations summarise it.
+
+First, \emph{the dominant effect of cognitive dynamics is that rest becomes a first-class scheduling decision.} Rules that ignore capacity lose a third to two thirds of the achievable return, and every competitive policy rests in 15--20\% of slots. This conclusion is robust and arguably the most important for practice: any scheduler for human work should include a rest decision. Even a simple periodic or threshold rule recovers most of the value.
+
+Second, \emph{well-tuned, hand-designed rules are strong competitors}, and an evaluation that omits them overstates the value of learning. Our first internal experiments compared the agent against EDF-based rules only and suggested a clear advantage. That advantage shrank once SPT-based rest rules were added (Supplementary Section~S6). The pre-specified hybrid agent ties with the best rule on return. The compact intensity-only agent exceeds it by a small but consistent margin (secondary analysis). A naive memoryless DQN would have led to the opposite conclusion. These sensitivities echo concerns in the RL evaluation literature \cite{henderson2018,agarwal2021} and in reviews of DRL scheduling \cite{kayhan2023,khadivi2025}. We recommend that studies of learned schedulers include tuned composite and state-aware rules as baselines.
+
+Third, \emph{what learning adds is the integration of several criteria that individual rules trade off.} SPT-based rules complete many tasks but starve demanding ones, whereas EDF-based rules protect demanding tasks but complete fewer. The learned policies achieve high count-based and difficulty-weighted on-time completion simultaneously (Fig.~\ref{fig:tradeoff}). Behaviourally, they do so by working intensively while the worker is fresh, scheduling demanding tasks when attention is high, filling low-attention periods with easy tasks, and concentrating rest around the circadian trough (Section~\ref{sec:behaviour}). Each element is intuitive, but their state-, time- and deadline-dependent combination is hard to express as a rule, as the hand-crafted Cog-Heuristic illustrates.
+
+Fourth, \emph{the value of learning grows with the quality of the cognitive-state estimate.} With perfect observation, AA-DQN outperforms the best rule by more than one return unit while its own fatigue level drops from 0.33 to 0.27, whereas the rules gain nothing from better information. The observation history is the single most important architectural component, and longer histories or recurrent encoders help further. Partial observability, not the optimisation itself, is therefore the main bottleneck. This points to an engineering trade-off: investments in sensing and state estimation are what unlock the benefits of adaptive scheduling.
+
+\subsection{Implications for engineering practice}
+The results translate into design guidance for human-centric scheduling systems, such as knowledge-work assistants, workflow-management platforms and supervisory controllers in human--robot cells \cite{lu2022,leng2022,ajoudani2018}.
+(i) \emph{Always schedule rest.} A threshold or periodic rest rule on top of SPT-like sequencing is a strong, transparent default when cognitive-state estimates are noisy or unavailable. It requires only a small grid search to tune.
+(ii) \emph{Use learning when state estimates are reliable or when several criteria must be balanced.} Learned policies balance throughput, protection of demanding tasks and fatigue in ways that single rules cannot, and they profit from better sensors.
+(iii) \emph{Make the well-being weight explicit.} The Pareto analysis shows that, up to a point, a higher weight on fatigue improves both well-being and on-time completion. The weight should be chosen deliberately with the stakeholders rather than left implicit in a heuristic's thresholds.
+(iv) \emph{Evaluate fairly.} Common random numbers, disjoint tuning and test days, tuned rule baselines and multi-seed statistics are inexpensive and change conclusions.
+
 \input{sections/07_discussion_static}

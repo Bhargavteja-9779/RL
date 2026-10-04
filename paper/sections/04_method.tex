@@ -1,7 +1,7 @@
 \section{Attention-aware deep Q-network}\label{sec:method}
 Figure~\ref{fig:framework} gives an overview of the closed loop between the simulated workday and the learning agent.
 
-\begin{figure}[t]
+\begin{figure}[!htbp]
 \centering
 \includegraphics[width=\textwidth]{figures/framework.pdf}
 \caption{Overview of the attention-aware scheduling framework. The worker's cognitive state is latent; the agent receives noisy estimates together with a queue summary, encodes a short observation history, and selects an intensity class, a dispatching rule or a break. Transitions are stored in a replay buffer and used to train a dueling Q-network with Double-DQN targets.}
@@ -37,7 +37,7 @@ Parameters are updated with Adam \cite{kingma2015} and gradient-norm clipping. T
 
 \subsection{Exploration and training procedure}
 Actions are selected $\epsilon$-greedily with an exponentially decaying exploration rate
-$\epsilon_n=\epsilon_{\min}+(\epsilon_{\max}-\epsilon_{\min})e^{-\kappa_\epsilon n}$, where $n$ is the environment step, $\epsilon_{\max}=1$ and $\epsilon_{\min}=0.01$, and $\kappa_\epsilon$ is set so that $\epsilon$ reaches 0.05 after half of the training budget. Algorithm~\ref{alg:aadqn} summarises training. Every 100 episodes, the greedy policy is evaluated on a fixed set of 100 \emph{validation} days that are disjoint from the training and test days, and the parameters with the highest validation return are retained. This mirrors the tuning of the heuristic baselines on their own held-out days (Section~\ref{sec:baselines}), so that both families receive the same model-selection budget and neither sees the test days. For transparency we also report the final-iterate policy (Supplementary Table~S3).
+$\epsilon_n=\epsilon_{\min}+(\epsilon_{\max}-\epsilon_{\min})e^{-\kappa_\epsilon n}$, where $n$ is the environment step, $\epsilon_{\max}=1$ and $\epsilon_{\min}=0.01$, and $\kappa_\epsilon$ is set so that $\epsilon$ reaches 0.05 after half of the training budget. Algorithm~\ref{alg:aadqn} summarises training. Every 100 episodes, the greedy policy is evaluated on a fixed set of 100 \emph{validation} days that are disjoint from the training and test days, and the parameters with the highest validation return are retained. This mirrors the tuning of the heuristic baselines on their own held-out days (Section~\ref{sec:baselines}), so that both families receive the same model-selection budget and neither sees the test days. For transparency we also report the final-iterate policy (Supplementary Table~S2).
 
 \begin{algorithm}[t]
 \caption{Training of the attention-aware DQN (AA-DQN).}
