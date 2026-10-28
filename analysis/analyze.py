@@ -87,7 +87,7 @@ def test_frame_final(recs, name):
 
 def final_vs_best(recs):
     rows = []
-    for n in ("DQN", "AA-DQN"):
+    for n in ("DQN", "AA-DQN", "PPO", "PPO-3act"):
         b, f = test_frame(recs, n), test_frame_final(recs, n)
         if b.empty or f.empty:
             continue
@@ -100,8 +100,8 @@ def final_vs_best(recs):
     df.to_csv(SUM / "final_vs_best.csv", index=False)
     lines = [r"\begin{tabular}{llccc}", r"\toprule", r"Method & Checkpoint & Return & On-time rate & Mean selected episode \\", r"\midrule"]
     for _, r in df.iterrows():
-        lines.append(f"{r.method} & {r.checkpoint} & {r.ret:.2f} $\\pm$ {r.ret_sd:.2f} & {r.on:.3f} $\\pm$ {r.on_sd:.3f} & "
-                     + (f"{r.best_ep:.0f}" if r.checkpoint.startswith("val") else "3000") + r" \\")
+        lines.append(f"{DISPLAY.get(r.method, r.method).replace(' (ours)', '')} & {r.checkpoint} & {r.ret:.2f} $\\pm$ {r.ret_sd:.2f} & {r.on:.3f} $\\pm$ {r.on_sd:.3f} & "
+                     + (f"{r.best_ep:.0f}" if r.checkpoint.startswith("val") else "5000") + r" \\")
     lines += [r"\bottomrule", r"\end{tabular}"]
     (TAB / "final_vs_best.tex").write_text("\n".join(lines))
     return df
@@ -232,22 +232,29 @@ def main_results(recs):
     lines += [r"\bottomrule", r"\end{tabular}"]
     (TAB / "main_results.tex").write_text("\n".join(lines))
 
+    stat_table(tests, "AA-DQN", "stat_tests_aadqn.tex")
+    if "PPO" in rl:
+        ppo = {k: pd.read_csv(SUM / f"testsppo_{k}.csv") for k in ("return", "on_time_rate", "weighted_on_time")}
+        stat_table(ppo, "AA-PPO", "stat_tests.tex")
+    return rl, heur, s, tests
+
+
+def stat_table(tests, agent, fname):
     t = tests["return"].merge(tests["on_time_rate"], on="baseline", suffixes=("_r", "_o"))
     t = t.merge(tests["weighted_on_time"].add_suffix("_w").rename(columns={"baseline_w": "baseline"}), on="baseline")
     lines = [r"\begin{tabular}{lccccccccc}", r"\toprule",
              r" & \multicolumn{3}{c}{Episode return} & \multicolumn{3}{c}{On-time rate (pp)} & \multicolumn{3}{c}{Weighted on-time rate (pp)} \\",
              r"\cmidrule(lr){2-4}\cmidrule(lr){5-7}\cmidrule(lr){8-10}",
-             r"AA-DQN vs. & $\Delta$ [95\% CI] & $r_{rb}$ & $p_{\mathrm{Holm}}$ & $\Delta$ [95\% CI] & $r_{rb}$ & $p_{\mathrm{Holm}}$ & $\Delta$ [95\% CI] & $r_{rb}$ & $p_{\mathrm{Holm}}$ \\",
+             agent + r" vs. & $\Delta$ [95\% CI] & $r_{rb}$ & $p_{\mathrm{Holm}}$ & $\Delta$ [95\% CI] & $r_{rb}$ & $p_{\mathrm{Holm}}$ & $\Delta$ [95\% CI] & $r_{rb}$ & $p_{\mathrm{Holm}}$ \\",
              r"\midrule"]
     for _, r in t.iterrows():
-        cells = [r.baseline]
+        cells = [DISPLAY.get(r.baseline, r.baseline).replace(" (ours)", "")]
         for suf, sc, dg in (("_r", 1, 2), ("_o", 100, 1), ("_w", 100, 1)):
             cells += [f"{sc * r['mean_diff' + suf]:+.{dg}f} [{sc * r['diff_lo' + suf]:+.{dg}f}, {sc * r['diff_hi' + suf]:+.{dg}f}]",
                       f"{r['rank_biserial' + suf]:.2f}", fmt_p(r["p_holm" + suf])]
         lines.append(" & ".join(cells) + r" \\")
     lines += [r"\bottomrule", r"\end{tabular}"]
-    (TAB / "stat_tests.tex").write_text("\n".join(lines))
-    return rl, heur, s, tests
+    (TAB / fname).write_text("\n".join(lines))
 
 
 def fig_main(s):
@@ -271,7 +278,7 @@ def fig_main(s):
 
 def fig_curves(recs, heur):
     fig, axes = plt.subplots(1, 2, figsize=(W2, 2.4))
-    for name in ("DQN", "AA-DQN"):
+    for name in ("DQN", "AA-DQN", "PPO"):
         cur = [pd.DataFrame(r["curve"]) for r in recs if r["name"] == name]
         if not cur:
             continue
@@ -280,7 +287,7 @@ def fig_curves(recs, heur):
             M = np.stack([c[k].values for c in cur])
             mu = M.mean(0)
             se = M.std(0, ddof=1) / np.sqrt(len(M))
-            ax.plot(ep, mu, color=C[name], label=name + (" (ours)" if name == "AA-DQN" else ""))
+            ax.plot(ep, mu, color=C[name], label=DISPLAY.get(name, name))
             ax.fill_between(ep, mu - 1.96 * se, mu + 1.96 * se, color=C[name], alpha=0.18, lw=0)
     from aacs.baselines import CLASSES, EDF, run_policy
     from aacs.env import CognitiveSchedulingEnv, make_cfg
@@ -636,7 +643,7 @@ def efficiency_surface():
 
 def compute_cost(recs):
     rows = []
-    for n in ("DQN", "AA-DQN"):
+    for n in ("DQN", "AA-DQN", "PPO"):
         rr = [r for r in recs if r["name"] == n]
         if rr:
             rows.append(dict(method=n, train_time_s=np.mean([r["train_time_s"] for r in rr]),
@@ -779,6 +786,8 @@ def write_numbers():
         N["trainTimeAA"] = f"{c.loc['AA-DQN', 'train_time_s']:.0f}"
         N["trainTimeDQN"] = f"{c.loc['DQN', 'train_time_s']:.0f}"
         N["inferUs"] = f"{c.loc['AA-DQN', 'us_per_decision']:.0f}"
+        if "PPO" in c.index:
+            N["trainTimePPO"] = f"{c.loc['PPO', 'train_time_s']:.0f}"
     fb = pd.read_csv(SUM / "final_vs_best.csv")
     for _, r in fb.iterrows():
         k = _cam(r.method) + ("Sel" if r.checkpoint.startswith("val") else "Final")
