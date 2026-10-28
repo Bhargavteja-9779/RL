@@ -23,15 +23,16 @@ SUM = RES / "summary"
 for d in (FIG, TAB, SUM):
     d.mkdir(parents=True, exist_ok=True)
 
-C = {"AA-DQN": "#2a78d6", "AA-DQN-3act": "#104281", "AA-DQN-DR": "#4a3aa7", "DQN": "#eb6834", "Cog-Heuristic": "#008300", "EDF-Threshold": "#eda100",
+C = {"AA-DQN": "#2a78d6", "AA-DQN-3act": "#104281", "AA-DQN-DR": "#a9a6d6", "PPO": "#4a3aa7", "PPO-3act": "#2b2170", "DQN": "#eb6834", "Cog-Heuristic": "#008300", "EDF-Threshold": "#eda100",
      "EDF-Periodic": "#e87ba4", "SPT-Threshold": "#1baf7a", "SPT-Periodic": "#e34948", "EDF": "#6b6a66", "FIFO": "#9a9993", "SPT": "#52514e", "Random": "#c3c2b7"}
-MK = {"AA-DQN": "o", "AA-DQN-3act": "d", "AA-DQN-DR": "P", "DQN": "s", "Cog-Heuristic": "^", "EDF-Threshold": "D", "EDF-Periodic": "v",
+MK = {"AA-DQN": "o", "AA-DQN-3act": "d", "AA-DQN-DR": "p", "PPO": "P", "PPO-3act": "X", "DQN": "s", "Cog-Heuristic": "^", "EDF-Threshold": "D", "EDF-Periodic": "v",
       "SPT-Threshold": "h", "SPT-Periodic": "<", "EDF": "x",
       "FIFO": "+", "SPT": "*", "Random": "."}
 INK, INK2, GRID = "#0b0b0b", "#52514e", "#e4e3df"
-DISPLAY = {"AA-DQN": "AA-DQN (ours)", "AA-DQN-3act": "AA-DQN, intensity (ours)", "AA-DQN-DR": "AA-DQN, randomised (ours)"}
+DISPLAY = {"AA-DQN": "AA-DQN (ours)", "AA-DQN-3act": "AA-DQN, intensity (ours)", "AA-DQN-DR": "AA-DQN, randomised (ours)",
+           "PPO": "AA-PPO (ours)", "PPO-3act": "AA-PPO, intensity (ours)"}
 ORDER = ["Random", "FIFO", "EDF", "SPT", "EDF-Periodic", "EDF-Threshold", "SPT-Periodic", "SPT-Threshold",
-         "Cog-Heuristic", "DQN", "AA-DQN", "AA-DQN-3act"]
+         "Cog-Heuristic", "DQN", "AA-DQN", "AA-DQN-3act", "PPO", "PPO-3act"]
 HEUR = ["Random", "FIFO", "EDF", "SPT", "EDF-Periodic", "EDF-Threshold", "SPT-Periodic", "SPT-Threshold", "Cog-Heuristic"]
 METRICS = ["return", "on_time_rate", "weighted_on_time", "completion_rate", "mean_attention", "mean_fatigue",
            "high_fatigue_frac", "break_frac", "effort"]
@@ -187,16 +188,22 @@ def fmt_p(p):
 # ------------------------------------------------------------------ analyses
 def main_results(recs):
     rl = {m: test_frame(recs, m) for m in ("DQN", "AA-DQN")}
-    sec = test_frame(recs, "AA-DQN-3act")
-    if not sec.empty and sec.train_seed.nunique() >= 10:
-        rl["AA-DQN-3act"] = sec
+    for extra in ("AA-DQN-3act", "PPO", "PPO-3act"):
+        sec = test_frame(recs, extra)
+        if not sec.empty and sec.train_seed.nunique() >= 10:
+            rl[extra] = sec
     heur = heur_frame("full")
     s = summarize(rl, heur)
-    if "AA-DQN-3act" in rl:
-        both = pd.concat([heur, rl["AA-DQN"].groupby("seed").mean(numeric_only=True).reset_index().assign(method="AA-DQN")])
+    both = pd.concat([heur] + [rl[m].groupby("seed").mean(numeric_only=True).reset_index().assign(method=m)
+                               for m in ("AA-DQN", "AA-DQN-3act") if m in rl])
+    for agent, prefix, against in (("AA-DQN-3act", "tests3", ["SPT-Threshold", "SPT-Periodic", "EDF-Periodic", "AA-DQN"]),
+                                   ("PPO", "testsppo", HEUR + ["AA-DQN", "AA-DQN-3act"]),
+                                   ("PPO-3act", "testsppo3", ["SPT-Threshold", "SPT-Periodic", "EDF-Periodic", "AA-DQN", "AA-DQN-3act"])):
+        if agent not in rl:
+            continue
         for k in ("return", "on_time_rate", "weighted_on_time", "mean_fatigue"):
-            paired_tests(rl["AA-DQN-3act"], both, k, against=["SPT-Threshold", "SPT-Periodic", "EDF-Periodic", "AA-DQN"]
-                         ).to_csv(SUM / f"tests3_{k}.csv", index=False)
+            t = paired_tests(rl[agent], both, k, against=[a for a in against if a in set(both.method)])
+            t.to_csv(SUM / f"{prefix}_{k}.csv", index=False)
     s.to_csv(SUM / "main_summary.csv", index=False)
     tests = {k: paired_tests(rl["AA-DQN"], heur, k) for k in ("return", "on_time_rate", "mean_fatigue", "weighted_on_time", "completion_rate")}
     tests["return_vs_DQN"] = paired_tests(rl["AA-DQN"], pd.concat([rl["DQN"].groupby("seed").mean(numeric_only=True)
@@ -217,7 +224,8 @@ def main_results(recs):
             if k in ("return", "on_time_rate", "weighted_on_time") and np.isclose(r[k], best[k]):
                 v = r"\textbf{" + v + "}"
             cells.append(v)
-        name = {"AA-DQN": "AA-DQN (ours, primary)", "AA-DQN-3act": "AA-DQN, intensity actions (secondary)"}.get(r["method"], r["method"])
+        name = {"AA-DQN": "AA-DQN (ours, hybrid actions)", "AA-DQN-3act": "AA-DQN (ours, intensity actions)",
+                "PPO": "AA-PPO (ours, hybrid actions)", "PPO-3act": "AA-PPO (ours, intensity actions)"}.get(r["method"], r["method"])
         if r["method"] == "DQN":
             lines.append(r"\midrule")
         lines.append(name + " & " + " & ".join(cells) + r" \\")
@@ -383,8 +391,10 @@ def robustness():
     out = agg.groupby(["condition", "method"]).agg(ret=("return", "mean"), ret_sd=("return", "std"),
                                                    on=("on_time_rate", "mean"), fat=("mean_fatigue", "mean")).reset_index()
     out.to_csv(SUM / "robustness.csv", index=False)
-    meths = [m for m in ["AA-DQN", "DQN", "SPT-Threshold", "EDF-Threshold", "EDF-Periodic", "AA-DQN-DR", "AA-DQN-3act", "EDF"]
+    meths = [m for m in ["PPO", "AA-DQN", "AA-DQN-3act", "DQN", "SPT-Threshold", "EDF-Threshold", "EDF-Periodic", "EDF"]
              if m in set(df.method)]
+    tmeths = [m for m in ["PPO", "PPO-3act", "AA-DQN", "AA-DQN-3act", "AA-DQN-DR", "DQN", "SPT-Threshold", "SPT-Periodic",
+                          "EDF-Periodic"] if m in set(df.method)]
     fig, axes = plt.subplots(1, 3, figsize=(W2, 2.55), gridspec_kw={"width_ratios": [1.3, 1, 1]})
     sig = [0.0, 0.05, 0.1, 0.2, 0.3]
     ax = axes[0]
@@ -394,7 +404,7 @@ def robustness():
             sub = agg[(agg.condition == f"noise{s_}") & (agg.method == m)]
             if sub.empty:
                 vals.append(np.nan); lo.append(np.nan); hi.append(np.nan); continue
-            if m in ("AA-DQN", "AA-DQN-DR", "DQN"):
+            if m in ("AA-DQN", "AA-DQN-DR", "DQN", "AA-DQN-3act", "PPO", "PPO-3act"):
                 v = sub["return"].values
                 a, b = boot_ci(v)
             else:
@@ -429,10 +439,10 @@ def robustness():
     conds = [("noise0.0", r"$\sigma_o=0$"), ("noise0.1", r"Nominal ($\sigma_o=0.1$)"), ("noise0.2", r"$\sigma_o=0.2$"),
              ("noise0.3", r"$\sigma_o=0.3$"), ("profile_resilient", "Resilient worker"),
              ("profile_fatigue_prone", "Fatigue-prone worker"), ("tasks8", "8 tasks/day"), ("tasks16", "16 tasks/day")]
-    lines = [r"\begin{tabular}{l" + "c" * len(meths) + "}", r"\toprule",
-             "Test condition & " + " & ".join(meths) + r" \\", r"\midrule"]
+    lines = [r"\begin{tabular}{l" + "c" * len(tmeths) + "}", r"\toprule",
+             "Test condition & " + " & ".join(DISPLAY.get(m, m).replace(" (ours)", "") for m in tmeths) + r" \\", r"\midrule"]
     for c, lab in conds:
-        vals = [out[(out.condition == c) & (out.method == m)] for m in meths]
+        vals = [out[(out.condition == c) & (out.method == m)] for m in tmeths]
         nums = [v.ret.values[0] if len(v) else np.nan for v in vals]
         bi = int(np.nanargmax(nums))
         cells = []
@@ -492,7 +502,10 @@ def component(recs):
              ("AA-DQN-3act", "-- intensity-only actions \\{easy, hard, break\\}"),
              ("AA-DQN-k2", "history $k{=}2$"), ("AA-DQN-k8", "history $k{=}8$"),
              ("AA-DQN-GRU", "GRU encoder over $k{=}8$ history"),
-             ("DQN", "Vanilla DQN ($k{=}1$, no Double/Dueling)")]
+             ("AA-DQN-lr1e-4", r"learning rate $10^{-4}$ (nominal $5\times10^{-4}$)"), ("AA-DQN-lr1e-3", r"learning rate $10^{-3}$"),
+             ("AA-DQN-g0.95", r"discount $\gamma_{\mathrm{RL}}=0.95$ (nominal 0.99)"), ("AA-DQN-g0.999", r"discount $\gamma_{\mathrm{RL}}=0.999$"),
+             ("DQN", "Vanilla DQN ($k{=}1$, no Double/Dueling)"), ("PPO", "AA-PPO (hybrid actions)"),
+             ("PPO-3act", "AA-PPO (intensity actions)")]
     rows = []
     for n, lab in names:
         rl = test_frame(recs, n)
@@ -519,15 +532,17 @@ def behaviour():
         return None
     z = np.load(f)
     hours = 9 + np.arange(48) / 6
-    meths = [("AA-DQN", "AA_DQN"), ("SPT-Threshold", "SPT_Threshold"), ("EDF-Periodic", "EDF_Periodic"), ("EDF", "EDF")]
-    fig, axes = plt.subplots(2, 4, figsize=(W2, 3.6), sharex=True)
+    meths = [("PPO", "PPO"), ("AA-DQN", "AA_DQN"), ("SPT-Threshold", "SPT_Threshold"), ("EDF-Periodic", "EDF_Periodic"),
+             ("EDF", "EDF")]
+    meths = [(m, k) for m, k in meths if f"{k}__act" in z]
+    fig, axes = plt.subplots(2, len(meths), figsize=(W2, 3.6), sharex=True)
     for j, (m, key) in enumerate(meths):
         act = z[f"{key}__act"]
         ax = axes[0, j]
         p = np.stack([(act == a).mean(0) for a in (1, 0, 4)])
         ax.stackplot(hours, p, colors=["#184f95", "#86b6ef", "#e4e3df"], labels=["Hard task", "Easy task", "Break"],
                      edgecolor="white", linewidth=0.3)
-        ax.set_title(m + (" (ours)" if m == "AA-DQN" else ""))
+        ax.set_title(DISPLAY.get(m, m), fontsize=7.5)
         ax.set_ylim(0, 1)
         ax.grid(False)
         if j == 0:
@@ -552,7 +567,8 @@ def behaviour():
 
     # timing statistics
     rows = []
-    for m, key in meths + [("DQN", "DQN"), ("EDF-Threshold", "EDF_Threshold"), ("Cog-Heuristic", "Cog_Heuristic")]:
+    for m, key in meths + [("DQN", "DQN"), ("EDF-Threshold", "EDF_Threshold"), ("Cog-Heuristic", "Cog_Heuristic"),
+                           ("AA-DQN-3act", "AA_DQN_3act"), ("PPO-3act", "PPO_3act")]:
         if f"{key}__act" not in z:
             continue
         act, A, Fm = z[f"{key}__act"], z[f"{key}__A"], z[f"{key}__F"]
@@ -655,6 +671,7 @@ def main():
     compute_cost(recs)
     print(final_vs_best(recs).to_string())
     heuristic_params_table()
+    print(simsens_analysis())
     write_numbers()
 
 
@@ -708,8 +725,10 @@ def write_numbers():
             N[f"rb{tag}{k}"] = f"{r.rank_biserial:.2f}"
             N[f"win{tag}{k}Pct"] = f"{100 * r.win_rate:.1f}"
             N[f"seeds{tag}{k}"] = f"{int(r.seeds_better)}"
-    for metric, tag in (("return", "Ret"), ("on_time_rate", "On"), ("weighted_on_time", "WOn"), ("mean_fatigue", "Fat")):
-        f = SUM / f"tests3_{metric}.csv"
+    for metric, tag in [(m, t) for m, t in (("return", "Ret"), ("on_time_rate", "On"), ("weighted_on_time", "WOn"),
+                                            ("mean_fatigue", "Fat"))]:
+      for prefix, mac in (("tests3", "Sec"), ("testsppo", "Ppo"), ("testsppo3", "PpoI")):
+        f = SUM / f"{prefix}_{metric}.csv"
         if not f.exists():
             continue
         t3 = pd.read_csv(f).set_index("baseline")
@@ -717,7 +736,7 @@ def write_numbers():
             r = t3.loc[b]
             sc = 100 if metric in ("on_time_rate", "weighted_on_time") else 1
             dg = 1 if sc == 100 else (2 if metric == "return" else 3)
-            k = "Sec" + tag + _cam(b)
+            k = mac + tag + _cam(b)
             N[k], N[k + "Lo"], N[k + "Hi"] = f"{sc * r.mean_diff:.{dg}f}", f"{sc * r.diff_lo:.{dg}f}", f"{sc * r.diff_hi:.{dg}f}"
             N["p" + k] = r"p_{\mathrm{Holm}}<10^{-4}" if r.p_holm < 1e-4 else rf"p_{{\mathrm{{Holm}}}}={r.p_holm:.2g}"
             N["seeds" + k] = f"{int(r.seeds_better)}"
@@ -747,6 +766,14 @@ def write_numbers():
         for _, r in cc.iterrows():
             k = "comp" + _cam(r["name"])
             N[k + "Ret"], N[k + "RetSD"], N[k + "OnPct"] = f"{r.ret:.2f}", f"{r.ret_sd:.2f}", f"{100 * r.on:.1f}"
+    if (SUM / "simsens_gap.csv").exists():
+        g = pd.read_csv(SUM / "simsens_gap.csv")
+        N["ssNConds"], N["ssLearnedWins"] = f"{len(g)}", f"{int((g.gap > 0).sum())}"
+        N["ssGapMin"], N["ssGapMax"], N["ssGapMean"] = f"{g.gap.min():.2f}", f"{g.gap.max():.2f}", f"{g.gap.mean():.2f}"
+        worst = g.loc[g.gap.idxmin()]
+        N["ssWorstParam"] = PARAM_LABEL[worst.param] + (r" $-30\%$" if worst.change == "m30" else r" $+30\%$")
+        for m in [c for c in g.columns if c not in ("param", "change", "gap")]:
+            N[f"ss{_cam(m)}Min"], N[f"ss{_cam(m)}Max"] = f"{g[m].min():.2f}", f"{g[m].max():.2f}"
     if (SUM / "compute.csv").exists():
         c = pd.read_csv(SUM / "compute.csv").set_index("method")
         N["trainTimeAA"] = f"{c.loc['AA-DQN', 'train_time_s']:.0f}"
@@ -807,6 +834,78 @@ def fig_tradeoff(s):
     ax.set_ylabel("Difficulty-weighted on-time rate")
     fig.tight_layout()
     save(fig, "fig_tradeoff")
+
+
+PARAM_LABEL = {"alpha": r"Attention depletion $\alpha$", "beta": r"Attention recovery $\beta$",
+               "delta": r"Fatigue accumulation $\delta$", "eta": r"Fatigue recovery $\eta$",
+               "kappa": r"Fatigue penalty $\kappa$", "gamma": r"Circadian amplitude $\gamma$",
+               "fatigue_coupling": r"Fatigue coupling $\phi$"}
+
+
+def simsens_analysis():
+    """Zero-shot sensitivity to +/-30% changes of each cognitive parameter."""
+    f = RES / "simsens.csv.gz"
+    if not f.exists():
+        return None
+    df = pd.read_csv(f)
+    rob = pd.read_csv(RES / "robustness.csv.gz")
+    nominal = rob[rob.condition == "noise0.1"].assign(condition="nominal")
+    df = pd.concat([df, nominal[nominal.method.isin(set(df.method))]])
+    agg = df.groupby(["condition", "method", "train_seed"])[["return", "on_time_rate"]].mean().reset_index()
+    out = agg.groupby(["condition", "method"]).agg(ret=("return", "mean"), on=("on_time_rate", "mean")).reset_index()
+    out.to_csv(SUM / "simsens.csv", index=False)
+    meths = [m for m in ["PPO", "PPO-3act", "AA-DQN", "AA-DQN-3act", "SPT-Threshold", "SPT-Periodic", "EDF-Periodic", "EDF"]
+             if m in set(out.method)]
+    rules = [m for m in ["SPT-Threshold", "SPT-Periodic", "EDF-Periodic", "EDF"] if m in meths]
+    learned = [m for m in meths if m not in rules]
+    params = list(PARAM_LABEL)
+
+    def get(c, m):
+        v = out[(out.condition == c) & (out.method == m)].ret.values
+        return v[0] if len(v) else np.nan
+
+    lines = [r"\begin{tabular}{ll" + "c" * len(meths) + "c}", r"\toprule",
+             "Parameter & Change & " + " & ".join(DISPLAY.get(m, m).replace(" (ours)", "") for m in meths)
+             + r" & Best learned $-$ best rule \\", r"\midrule"]
+    nom = [get("nominal", m) for m in meths]
+    gap = max(get("nominal", m) for m in learned) - max(get("nominal", m) for m in rules)
+    bi = int(np.nanargmax(nom))
+    lines.append("Nominal & -- & " + " & ".join((r"\textbf{%.2f}" % v) if i == bi else f"{v:.2f}" for i, v in enumerate(nom))
+                 + f" & {gap:+.2f}" + r" \\")
+    rows = []
+    for p_ in params:
+        for tag, lab in (("m30", r"$-30\%$"), ("p30", r"$+30\%$")):
+            c = f"{p_}_{tag}"
+            vals = [get(c, m) for m in meths]
+            g = max(get(c, m) for m in learned) - max(get(c, m) for m in rules)
+            rows.append(dict(param=p_, change=tag, gap=g, **{m: v for m, v in zip(meths, vals)}))
+            bi = int(np.nanargmax(vals))
+            cells = [(r"\textbf{%.2f}" % v) if i == bi else f"{v:.2f}" for i, v in enumerate(vals)]
+            lines.append(f"{PARAM_LABEL[p_] if tag == 'm30' else ''} & {lab} & " + " & ".join(cells) + f" & {g:+.2f}" + r" \\")
+    lines += [r"\bottomrule", r"\end{tabular}"]
+    (TAB / "simsens.tex").write_text("\n".join(lines))
+    R = pd.DataFrame(rows)
+    R.to_csv(SUM / "simsens_gap.csv", index=False)
+
+    show = [m for m in ["PPO", "AA-DQN-3act", "AA-DQN", "SPT-Threshold", "EDF-Periodic"] if m in meths]
+    fig, ax = plt.subplots(figsize=(W2, 3.0))
+    y = np.arange(len(params))[::-1]
+    off = np.linspace(-0.3, 0.3, len(show))
+    for j, m in enumerate(show):
+        lo = [get(f"{p_}_m30", m) for p_ in params]
+        hi = [get(f"{p_}_p30", m) for p_ in params]
+        for yy, a, b in zip(y + off[j], lo, hi):
+            ax.plot([a, b], [yy, yy], color=C[m], lw=1.3, alpha=0.85)
+        ax.plot(lo, y + off[j], "<", color=C[m], ms=3.5)
+        ax.plot(hi, y + off[j], ">", color=C[m], ms=3.5)
+        ax.plot([], [], color=C[m], lw=1.6, label=DISPLAY.get(m, m))
+    ax.set_yticks(y, [PARAM_LABEL[p_] for p_ in params])
+    ax.set_xlabel(r"Episode return after a $-30\%$ ($\triangleleft$) or $+30\%$ ($\triangleright$) change of one parameter")
+    ax.grid(axis="y", visible=False)
+    ax.legend(fontsize=6.3, ncol=len(show), loc="upper center", bbox_to_anchor=(0.42, 1.14))
+    fig.tight_layout()
+    save(fig, "fig_simsens")
+    return R
 
 
 if __name__ == "__main__":

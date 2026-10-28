@@ -29,6 +29,23 @@ VARIANTS = {
 }
 
 
+def load_agent(name, s):
+    """Load a trained agent (DQN family or PPO) from results/runs; returns (agent, n_actions)."""
+    import torch
+
+    from aacs.agents import AgentConfig, DQNAgent
+
+    ck = torch.load(RES / "runs" / f"{name}_s{s}.pt", weights_only=False)
+    if ck.get("algo") == "ppo":
+        from aacs.ppo import PPOAgent, PPOConfig
+
+        ag = PPOAgent(PPOConfig(**ck["cfg"]), seed=s, n_actions=ck["n_actions"])
+    else:
+        ag = DQNAgent(AgentConfig(**ck["cfg"]), seed=s, n_actions=ck["n_actions"])
+    ag.q.load_state_dict(ck["q"])
+    return ag, ck["n_actions"]
+
+
 def _heur_variant(name):
     from aacs.baselines import CLASSES, fixed_baselines, run_policy, tune
     from aacs.env import CognitiveSchedulingEnv, make_cfg
@@ -58,6 +75,7 @@ def heuristics(workers=2):
             print(name, params, flush=True)
 
 
+ROBUST_AGENTS = [("DQN", 10), ("AA-DQN", 10), ("AA-DQN-DR", 5), ("AA-DQN-3act", 10)]
 ROBUST = {
     **{f"noise{s}": dict(obs_noise=s) for s in (0.0, 0.05, 0.1, 0.2, 0.3)},
     "profile_resilient": "resilient",
@@ -85,12 +103,10 @@ def _robust_one(cond):
     for p in pols:
         for r in run_policy(env, p, TEST):
             rows.append({"condition": cond, "method": p.name, "train_seed": -1, **r})
-    for name, nseeds in (("DQN", 10), ("AA-DQN", 10), ("AA-DQN-DR", 5), ("AA-DQN-3act", 10)):
+    for name, nseeds in ROBUST_AGENTS:
         for s in range(nseeds):
-            ck = torch.load(RES / "runs" / f"{name}_s{s}.pt", weights_only=False)
-            ag = DQNAgent(AgentConfig(**ck["cfg"]), seed=s, n_actions=ck["n_actions"])
-            ag.q.load_state_dict(ck["q"])
-            acfg = cfg.with_(action_set="intensity") if ck["n_actions"] == 3 else cfg
+            ag, nact = load_agent(name, s)
+            acfg = cfg.with_(action_set="intensity") if nact == 3 else cfg
             for r in evaluate_agent(ag, acfg, TEST):
                 rows.append({"condition": cond, "method": name, "train_seed": s, **r})
     return cond, rows
@@ -121,13 +137,11 @@ def traces():
     for p in [EDF()] + [CLASSES[h](**params[h]["params"]) for h in CLASSES]:
         _, tr = run_policy(env, p, TEST, keep_traces=True)
         out[p.name] = tr
-    for name in ("DQN", "AA-DQN", "AA-DQN-3act"):
+    for name in ("DQN", "AA-DQN", "AA-DQN-3act", "PPO", "PPO-3act"):
         trs = []
         for s in range(10):
-            ck = torch.load(RES / "runs" / f"{name}_s{s}.pt", weights_only=False)
-            ag = DQNAgent(AgentConfig(**ck["cfg"]), seed=s, n_actions=ck["n_actions"])
-            ag.q.load_state_dict(ck["q"])
-            acfg = cfg.with_(action_set="intensity") if ck["n_actions"] == 3 else cfg
+            ag, nact = load_agent(name, s)
+            acfg = cfg.with_(action_set="intensity") if nact == 3 else cfg
             _, tr = evaluate_agent(ag, acfg, TEST, keep_traces=True)
             trs += tr
         out[name] = trs
@@ -140,5 +154,79 @@ def traces():
     print("traces saved", list(out))
 
 
+SIMSENS = {f"{p}_{tag}": {p: getattr(__import__("aacs.env", fromlist=["NOMINAL"]).NOMINAL, p) * f}
+           for p in ("alpha", "beta", "delta", "eta", "kappa", "gamma", "fatigue_coupling")
+           for tag, f in (("m30", 0.7), ("p30", 1.3))}
+
+
+def _simsens_one(cond):
+    import torch
+
+    torch.set_num_threads(1)
+    from aacs.agents import AgentConfig, DQNAgent, evaluate_agent
+    from aacs.baselines import CLASSES, EDF, run_policy
+    from aacs.env import CognitiveSchedulingEnv, make_cfg
+    from experiments.seeds import TEST
+
+    cfg = make_cfg("full", **SIMSENS[cond])
+    env = CognitiveSchedulingEnv(cfg)
+    params = json.loads((RES / "heuristics" / "full_params.json").read_text())
+    rows = []
+    for p in [EDF()] + [CLASSES[h](**params[h]["params"]) for h in ("EDF-Periodic", "SPT-Periodic", "SPT-Threshold")]:
+        for r in run_policy(env, p, TEST):
+            rows.append({"condition": cond, "method": p.name, "train_seed": -1, **r})
+    for name in ("AA-DQN", "AA-DQN-3act", "PPO", "PPO-3act"):
+        for s in range(10):
+            ag, nact = load_agent(name, s)
+            acfg = cfg.with_(action_set="intensity") if nact == 3 else cfg
+            for r in evaluate_agent(ag, acfg, TEST):
+                rows.append({"condition": cond, "method": name, "train_seed": s, **r})
+    return cond, rows
+
+
+def simsens(workers=4):
+    """One-at-a-time +/-30% perturbation of each cognitive parameter, zero-shot."""
+    allrows = []
+    with Pool(workers) as pool:
+        for cond, rows in pool.imap_unordered(_simsens_one, list(SIMSENS)):
+            print("simsens", cond, flush=True)
+            allrows += rows
+    pd.DataFrame(allrows).to_csv(RES / "simsens.csv.gz", index=False)
+
+
+def _robust_agents_only(args):
+    cond, names = args
+    import torch
+
+    torch.set_num_threads(1)
+    from aacs.agents import evaluate_agent
+    from aacs.env import PROFILES, make_cfg
+    from experiments.seeds import TEST
+
+    spec = ROBUST[cond]
+    cfg = make_cfg("full", **(PROFILES[spec] if isinstance(spec, str) else spec))
+    rows = []
+    for name in names:
+        for s in range(10):
+            ag, nact = load_agent(name, s)
+            acfg = cfg.with_(action_set="intensity") if nact == 3 else cfg
+            for r in evaluate_agent(ag, acfg, TEST):
+                rows.append({"condition": cond, "method": name, "train_seed": s, **r})
+    return cond, rows
+
+
+def robustness_add(names=("PPO", "PPO-3act"), workers=4):
+    """Evaluate additional agents under the robustness conditions and merge into robustness.csv.gz."""
+    f = RES / "robustness.csv.gz"
+    df = pd.read_csv(f)
+    df = df[~df.method.isin(names)]
+    new = []
+    with Pool(workers) as pool:
+        for cond, rows in pool.imap_unordered(_robust_agents_only, [(c, list(names)) for c in ROBUST]):
+            print("robustness_add", cond, flush=True)
+            new += rows
+    pd.concat([df, pd.DataFrame(new)]).to_csv(f, index=False)
+
+
 if __name__ == "__main__":
-    {"heuristics": heuristics, "robustness": robustness, "traces": traces}[sys.argv[1]]()
+    {"heuristics": heuristics, "robustness": robustness, "traces": traces, "simsens": simsens, "robustness_add": robustness_add}[sys.argv[1]]()

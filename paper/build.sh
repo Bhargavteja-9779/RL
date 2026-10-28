@@ -2,10 +2,18 @@
 # Build all submission PDFs and Word versions. Run from anywhere: bash paper/build.sh
 set -e
 cd "$(dirname "$0")"
-for f in manuscript supplementary cover_letter highlights title_page review/internal_review; do
+(cd figures && pdflatex -interaction=nonstopmode framework.tex >/dev/null && pdftoppm -png -r 300 -singlefile framework.pdf framework)
+(cd figures && pdflatex -interaction=nonstopmode graphical_abstract.tex >/dev/null && pdftoppm -png -scale-to-x 2000 -scale-to-y -1 -singlefile graphical_abstract.pdf graphical_abstract)
+# manuscript, supplementary and response cross-reference each other (xr), so build them twice
+for pass in 1 2; do
+  for f in manuscript supplementary manuscript_highlighted response_to_reviewers; do
+    latexmk -pdf -interaction=nonstopmode -quiet "$f.tex" >/dev/null 2>&1 || echo "LaTeX failed: $f (pass $pass)"
+    [ $pass = 1 ] && latexmk -pdf -g -interaction=nonstopmode -quiet "$f.tex" >/dev/null 2>&1
+  done
+done
+for f in cover_letter highlights title_page review/internal_review; do
   (cd "$(dirname $f)" && latexmk -pdf -interaction=nonstopmode -quiet "$(basename $f).tex" >/dev/null 2>&1) || echo "LaTeX failed: $f"
 done
-(cd figures && pdflatex -interaction=nonstopmode framework.tex >/dev/null && pdftoppm -png -r 300 -singlefile framework.pdf framework)
 
 # Word versions: flatten \input, use PNG figures, numeric Elsevier citations.
 mkdir -p word
@@ -18,8 +26,17 @@ def flatten(t):
     return re.sub(r"\\input\{([^}]*)\}", lambda m: flatten(pathlib.Path(m.group(1) + ("" if m.group(1).endswith(".tex") else ".tex")).read_text()), t)
 t = flatten(src)
 t = re.sub(r"(figures/[A-Za-z0-9_]+)\.pdf", r"\1.png", t)
+# resolve cross-document (xr) references, which pandoc cannot follow
+for pre, aux in (("S-", "supplementary.aux"), ("M-", "manuscript.aux")):
+    labels = dict(re.findall(r"\\newlabel\{([^}]*)\}\{\{([^}]*)\}", pathlib.Path(aux).read_text())) if pathlib.Path(aux).exists() else {}
+    t = re.sub(r"\\eqref\{" + pre + r"([^}]*)\}", lambda m: "(" + labels.get(m.group(1), "?") + ")", t)
+    t = re.sub(r"\\ref\{" + pre + r"([^}]*)\}", lambda m: labels.get(m.group(1), "?"), t)
 t = t.replace(r"\resizebox{\textwidth}{!}{", r"{")
 t = re.sub(r"\\linenumbers", "", t)
+t = re.sub(r"% Revision marking.*?\n\\fi\n", "", t, flags=re.S)
+t = re.sub(r"\\revnote\{[^}]*\}", "", t)
+t = t.replace("\\rev{", "{")
+t = t.replace(r"\ifdefined\HIGHLIGHT\color{blue}\fi", "")
 if name == "manuscript":
     title = re.search(r"\\title\{(.*?)\}\n", t, re.S).group(1)
     absr = re.search(r"\\begin\{abstract\}(.*?)\\end\{abstract\}", t, re.S).group(1)

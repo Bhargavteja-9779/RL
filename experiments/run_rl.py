@@ -44,6 +44,20 @@ def jobs():
     # so it is re-evaluated with the full 10-seed protocol rather than promoted on 3 seeds
     for s in range(3, 10):
         J.append(("secondary", "AA-DQN-3act", comp["AA-DQN-3act"][0], "full", comp["AA-DQN-3act"][1], s))
+    # revision: alternative RL algorithm and hyperparameter sensitivity
+    from aacs.ppo import PPOConfig
+    for s in range(10):
+        J.append(("ppo", "PPO", PPOConfig(), "full", {}, s))
+        J.append(("ppo", "PPO-3act", PPOConfig(name="PPO-3act"), "full", dict(action_set="intensity"), s))
+    sens = {
+        "AA-DQN-lr1e-4": replace(AADQN_CFG, name="AA-DQN-lr1e-4", lr=1e-4),
+        "AA-DQN-lr1e-3": replace(AADQN_CFG, name="AA-DQN-lr1e-3", lr=1e-3),
+        "AA-DQN-g0.95": replace(AADQN_CFG, name="AA-DQN-g0.95", gamma=0.95),
+        "AA-DQN-g0.999": replace(AADQN_CFG, name="AA-DQN-g0.999", gamma=0.999),
+    }
+    for name, cfg in sens.items():
+        for s in range(3):
+            J.append(("sensitivity", name, cfg, "full", {}, s))
     return J
 
 
@@ -67,7 +81,9 @@ def run_job(job):
         return tag, "cached"
     ecfg = make_cfg(abl, **over)
     t0 = time.time()
-    agent, log, curve = train_agent(acfg, ecfg, seed, eval_seeds=VALIDATION, randomize=(group == "randomized"))
+    from aacs.ppo import PPOConfig, train_ppo
+    trainer = train_ppo if isinstance(acfg, PPOConfig) else train_agent
+    agent, log, curve = trainer(acfg, ecfg, seed, eval_seeds=VALIDATION, randomize=(group == "randomized"))
     train_time = time.time() - t0
     test_final = evaluate_agent(agent, ecfg, TEST)
     torch.save(agent.state_dict(), RUNS / f"{tag}_final.pt")

@@ -9,7 +9,9 @@
 \usepackage{algorithm}
 \usepackage[noend]{algpseudocode}
 \usepackage{xcolor}
+\usepackage{xr-hyper}
 \usepackage[hidelinks]{hyperref}
+\externaldocument[S-]{supplementary}
 \usepackage{lineno}
 \usepackage[section]{placeins}
 \renewcommand{\topfraction}{0.9}
@@ -19,15 +21,25 @@
 \setcounter{totalnumber}{5}
 \linenumbers
 \biboptions{numbers,sort&compress}
-\journal{Results in Engineering}
+\journal{Array}
 \makeatletter
 \def\ps@pprintTitle{\let\@oddhead\@empty\let\@evenhead\@empty\let\@oddfoot\@empty\let\@evenfoot\@empty}
 \makeatother
 \input{numbers}
+% Revision marking: compile manuscript_highlighted.tex to show revised passages in blue with
+% margin tags naming the comment addressed; manuscript.tex itself gives the clean version.
+\ifdefined\HIGHLIGHT
+  \newcommand{\rev}[1]{{\color{blue}#1}}
+  \newcommand{\revnote}[1]{\marginpar{\raggedright\scriptsize\color{blue}\textsf{#1}}}
+  \setlength{\marginparwidth}{1.6cm}
+\else
+  \newcommand{\rev}[1]{#1}
+  \newcommand{\revnote}[1]{}
+\fi
 
 \begin{document}
 \begin{frontmatter}
-\title{Attention-aware task scheduling under partial observability of human cognitive state: a memory-augmented deep reinforcement learning approach}
+\title{Attention-Aware Task Scheduling via Deep Reinforcement Learning under Partial Observability for Human-Centric Productivity Optimization}
 
 \author[vit]{P.\,N. Bhargav Teja}
 \author[vit]{Lanka Sree Chathurya}
@@ -43,6 +55,7 @@
 \input{sections/00_abstract}
 \end{frontmatter}
 
+\input{sections/00b_nomenclature}
 \input{sections/01_intro}
 \input{sections/02_related}
 \input{sections/03_problem}
@@ -60,6 +73,9 @@ The authors declare that they have no known competing financial interests or per
 
 \section*{Funding}
 This research did not receive any specific grant from funding agencies in the public, commercial, or not-for-profit sectors.
+
+\section*{Ethics statement}
+\rev{\revnote{Ed.}This study is entirely computational. It uses a simulated worker model whose parameters are taken from the published literature; no human participants, animals, personal data or human-derived samples were involved, so ethical approval and informed consent were not required.}
 
 \section*{Data availability}
 The simulator, agents, baselines, experiment configurations, raw per-episode results and the scripts that generate every table and figure are openly available at \url{https://github.com/bhargavteja-9779/rl}. No human-subject data were collected.

@@ -1,0 +1,69 @@
+\section*{Nomenclature}
+\addcontentsline{toc}{section}{Nomenclature}
+\begingroup
+\small\ifdefined\HIGHLIGHT\color{blue}\fi\revnote{R3.1}
+\setlength{\tabcolsep}{4pt}
+\noindent\textbf{Abbreviations}\par\smallskip
+\noindent\begin{tabular}{@{}p{2.3cm}p{5.0cm}p{2.3cm}p{5.0cm}@{}}
+AA-DQN & attention-aware deep Q-network & MDP & Markov decision process \\
+CI & confidence interval & POMDP & partially observable MDP \\
+CRN & common random numbers & PPO & proximal policy optimisation \\
+DQN & deep Q-network & Adam & adaptive moment estimation \\
+DRL & deep reinforcement learning & RL & reinforcement learning \\
+EDF & earliest deadline first & SPT & shortest processing time \\
+FIFO & first in, first out & TD & temporal difference \\
+GRU & gated recurrent unit & HRC & human--robot collaboration \\
+AA-PPO & attention-aware PPO & GAE & generalised advantage estimation \\
+OT & on-time rate & WOT & difficulty-weighted on-time rate \\
+CR & completion rate & HFE & high-fatigue exposure \\
+BS & break share & pp & percentage points \\
+\end{tabular}
+
+\bigskip
+\noindent\textbf{Symbols}\par\smallskip
+\noindent\begin{tabular}{@{}p{2.3cm}p{12.6cm}@{}}
+\multicolumn{2}{@{}l}{\emph{Workload and time}} \\
+$t$, $T$, $\Delta$ & decision slot index, slots per day ($T=48$), slot length ($\Delta=10$ min) \\
+$h_t$ & clock time of slot $t$ in hours, $h_t=9+t\Delta/60$ \\
+$N$ & number of tasks per day \\
+$e_i$, $d_i$, $w_i$, $D_i$ & arrival (entry) slot, difficulty, work content and deadline of task $i$ \\
+$s_i$ & relative deadline slack of task $i$ \\
+$R_{i,t}$, $\tau_i$ & remaining work and completion slot of task $i$ \\
+$\mathcal P_t$, $\mathcal E$, $\mathcal H$ & available unfinished tasks; easy tasks; hard tasks \\
+$\mathcal C_t$, $\mathcal M_t$ & tasks completed / deadlines missed in slot $t$ \\
+\multicolumn{2}{@{}l}{\emph{Cognitive state and observation}} \\
+$H_t$ & homeostatic attention resource (latent) \\
+$A_t$, $c(h)$ & effective attention (latent); circadian modulation \\
+$F_t$ & fatigue (latent) \\
+$\rho_t$, $\rho_0$ & work rate (work units per slot); work rate of a fully rested worker \\
+$\alpha$, $\phi$, $\beta$ & attention depletion rate, fatigue coupling, attention recovery rate \\
+$\gamma$ & circadian amplitude \\
+$\delta$, $\eta$, $\kappa$ & fatigue accumulation rate, fatigue recovery rate, fatigue throughput penalty \\
+$\sigma_p$, $\xi_t$ & process-noise scale and standard normal process noise \\
+$\sigma_o$, $\epsilon_t$ & observation-noise scale and standard normal observation noise \\
+$\tilde A_t$, $\tilde F_t$ & noisy observations of attention and fatigue \\
+$u_t$, $b_t$ & indicators of working and resting in slot $t$ \\
+$o_t$, $x_t$, $k$ & observation vector, observation history, history length \\
+$n_t$, $W_t$, $\sigma_t$, $m_t$, $\omega_t$ & per-class queue length, remaining work, normalised slack, overdue count, shortest remaining work \\
+\multicolumn{2}{@{}l}{\emph{Decision problem and learning}} \\
+$\mathcal S$, $\mathcal A$, $\Omega$ & state, action and observation spaces \\
+$P$, $O$, $R$ & transition, observation and reward functions \\
+$a_t$, $g(\cdot)$ & macro-action and dispatch function \\
+$r_t$, $\lambda$, $\mu$ & reward; fatigue and attention weights \\
+$\pi$, $J(\pi)$, $\mathcal B_t$ & policy, expected return, belief state \\
+$\gamma_{\mathrm{RL}}$ & discount factor (distinct from the circadian amplitude $\gamma$) \\
+$Q$, $V$, $\mathrm{Adv}$ & action-value, state-value and advantage functions \\
+$\theta$, $\bar\theta$ & online and target network parameters \\
+$y_t$, $\mathcal L$, $\ell_\delta$ & TD target, loss, Huber function \\
+$\mathcal D$ & replay buffer \\
+$\epsilon_n$ & exploration rate after $n$ environment steps \\
+$\pi_\theta$, $V_\psi$ & PPO policy and value networks \\
+$\varrho_t$, $\varepsilon_{\mathrm{c}}$ & PPO probability ratio and clipping parameter \\
+$\widehat{\mathrm{Adv}}_t$, $\hat G_t$ & generalised advantage estimate and return target \\
+$c_v$, $c_e$, $\mathbb H$ & value and entropy coefficients; entropy \\
+$\lambda_{\mathrm{GAE}}$ & GAE parameter \\
+$\eta_{\mathrm{lr}}$ & learning rate \\
+$r_{rb}$ & matched-pairs rank-biserial correlation \\
+\end{tabular}
+\endgroup
+\clearpage

@@ -1,7 +1,7 @@
 \section{Experimental design}\label{sec:setup}
 
 \subsection{Baselines}\label{sec:baselines}
-We compare AA-DQN against the vanilla DQN and nine rule-based schedulers, which span classical dispatching and hand-crafted cognition-aware policies. Baselines dispatch individual tasks directly, so they have at least as much control over task choice as the RL agents.
+We compare the two learners of the framework, AA-DQN and AA-PPO, against nine rule-based schedulers, which span classical dispatching and hand-crafted cognition-aware policies, and against a vanilla, memoryless DQN. Baselines dispatch individual tasks directly, so they have at least as much control over task choice as the RL agents.
 \begin{itemize}
   \item \textbf{Random}: uniform choice among \textsc{easy}, \textsc{hard} and \textsc{break}.
   \item \textbf{FIFO}: the available task that arrived first; never rests.
@@ -9,26 +9,45 @@ We compare AA-DQN against the vanilla DQN and nine rule-based schedulers, which 
   \item \textbf{SPT}: the available task with the least remaining work; never rests \cite{smith1956}.
   \item \textbf{EDF-Periodic}: EDF with one break after every $p$ work slots, a fixed work--rest cycle in the spirit of ergonomic rest-allowance guidance \cite{konz1998}.
   \item \textbf{EDF-Threshold}: EDF that rests whenever the \emph{observed} fatigue exceeds $\tau_F$ or the observed attention falls below $\tau_A$. This is a reactive, state-aware rule.
-  \item \textbf{SPT-Periodic} and \textbf{SPT-Threshold}: the same two rest rules combined with SPT sequencing. SPT limits the damage of overload by finishing short tasks first, so these variants combine the best classical sequencing rule (Section~\ref{sec:main}) with state-aware rest. They were added after a pre-submission review identified them as the strongest hand-designed competitors (Supplementary Section~S6).
+  \item \textbf{SPT-Periodic} and \textbf{SPT-Threshold}: the same two rest rules combined with SPT sequencing. SPT limits the damage of overload by finishing short tasks first, so these variants combine the best classical sequencing rule (Section~\ref{sec:main}) with state-aware rest. They were added after a pre-submission review identified them as the strongest hand-designed competitors (Supplementary Section~\ref{S-sec:s-audit}).
   \item \textbf{Cog-Heuristic}: rests on the same threshold rule and otherwise schedules a hard task only when observed attention is at least $\tau_H$, an easy task otherwise (EDF within class). This hand-crafted rule encodes the intuition that the learned policy might discover.
 \end{itemize}
-The parameters of the five parametric heuristics were selected by exhaustive grid search, maximising mean return on 300 \emph{tuning} days that are disjoint from the training, validation and test days. The grids were $p\in\{2,3,4,5,6,8,10\}$; $\tau_F\in\{0.3,\dots,0.9,1.01\}$ and $\tau_A\in\{0,0.2,\dots,0.7\}$ (56 combinations, for both threshold rules); and, for Cog-Heuristic, $\tau_F\times\tau_A\times\tau_H$ with $\tau_H\in\{0.4,\dots,0.9\}$ (252 combinations). The heuristics observe exactly the same noisy signals as the agents. The selected parameters are reported in Supplementary Table~S1. Tuning is repeated separately for every environment variant, so that each ablation compares the agent with the best heuristic \emph{for that variant}.
+\rev{\revnote{R4.4}\paragraph{Policy-gradient learner}
+AA-PPO (Section~\ref{sec:aappo}) uses the same observation history ($k=4$), the same action sets (hybrid and intensity-only, ten seeds each), the same training budget and the same validation-based checkpoint selection as AA-DQN. Its actor and critic share two hidden layers of 128 tanh units. The other settings are the common defaults: rollouts of 2048 steps, 10 epochs, minibatches of 256, clipping $0.2$, GAE parameter $0.95$, entropy coefficient $0.01$ and learning rate $3\times10^{-4}$.}
+
+The parameters of the five parametric heuristics were selected by exhaustive grid search, maximising mean return on 300 \emph{tuning} days that are disjoint from the training, validation and test days. The grids were $p\in\{2,3,4,5,6,8,10\}$; $\tau_F\in\{0.3,\dots,0.9,1.01\}$ and $\tau_A\in\{0,0.2,\dots,0.7\}$ (56 combinations, for both threshold rules); and, for Cog-Heuristic, $\tau_F\times\tau_A\times\tau_H$ with $\tau_H\in\{0.4,\dots,0.9\}$ (252 combinations). The heuristics observe exactly the same noisy signals as the agents. The selected parameters are reported in Supplementary Table~\ref{S-tab:s-heur}. Tuning is repeated separately for every environment variant, so that each ablation compares the agent with the best heuristic \emph{for that variant}.
 
 \subsection{Protocol}
-The main configurations were trained with ten independent seeds, the environment ablations and the domain-randomised variant with five, and the reward-weight sweep and the component study with three, each for 5000 episodes ($2.4\times10^5$ decisions). Four disjoint sets of days were used: training days (generated from the training seed), 100 validation days for checkpoint selection, 300 tuning days for heuristic parameters, and 500 test days used only once, for the final evaluation. All methods are evaluated greedily on the \emph{same} 500 test days with \emph{common random numbers}. Each test day fixes the task set, the initial cognitive state and the sequences of process and observation noise, so differences between methods are paired and not confounded by sampling variation. Seven further seeds of the intensity-only variant were trained for the secondary analysis (Section~\ref{sec:secondary}). In total, 82 agents were trained and more than $10^5$ test days were simulated.
+The main configurations were trained with ten independent seeds, the environment ablations and the domain-randomised variant with five, and the reward-weight sweep and the component study with three, each for 5000 episodes ($2.4\times10^5$ decisions). Four disjoint sets of days were used: training days (generated from the training seed), 100 validation days for checkpoint selection, 300 tuning days for heuristic parameters, and 500 test days used only once, for the final evaluation. All methods are evaluated greedily on the \emph{same} 500 test days with \emph{common random numbers}. Each test day fixes the task set, the initial cognitive state and the sequences of process and observation noise, so differences between methods are paired and not confounded by sampling variation. Seven further seeds of the intensity-only variant were trained for the secondary analysis (Section~\ref{sec:secondary}). \rev{\revnote{R4.6}During the revision, ten seeds of each AA-PPO variant and three seeds of each of four hyperparameter settings of AA-DQN were added. In total, 114 agents were trained and more than $10^6$ test days were simulated.}
 
-\subsection{Metrics}
-Besides the return (Eq.~\eqref{eq:reward}), which depends on the reward weights, we report reward-independent operational metrics: the \emph{on-time rate} (fraction of the day's tasks completed by their deadline); the \emph{difficulty-weighted on-time rate} $\sum_i d_i\mathbb 1(\text{on time})/\sum_i d_i$; the \emph{completion rate} (completed at any time); the mean \emph{true} attention $\bar A$ and fatigue $\bar F$ over the day; the \emph{high-fatigue exposure}, i.e.\ the fraction of slots with $F_t>0.7$; and the \emph{break share}.
+\subsection{Metrics}\label{sec:metrics}
+\rev{\revnote{R4.5}Besides the return (Eq.~\eqref{eq:objective} with $\gamma_{\mathrm{RL}}=1$), which depends on the reward weights, we report operational metrics that are independent of the reward and are computed from the task outcomes and the \emph{true} latent states. With $\tau_i$ the completion slot of task $i$ (Eq.~\eqref{eq:progress}), the on-time rate, the difficulty-weighted on-time rate and the completion rate are
+\begin{equation}
+\mathrm{OT}=\frac1N\sum_{i=1}^N\mathbb 1(\tau_i\le D_i),\qquad
+\mathrm{WOT}=\frac{\sum_i d_i\,\mathbb 1(\tau_i\le D_i)}{\sum_i d_i},\qquad
+\mathrm{CR}=\frac1N\sum_{i=1}^N\mathbb 1(\tau_i\le T),
+\label{eq:metrics1}
+\end{equation}
+so that $1-\mathrm{OT}$ is the deadline-violation rate and WOT measures workload-adjusted productivity. The mean attention, mean fatigue, high-fatigue exposure and break share are
+\begin{equation}
+\bar A=\frac1T\sum_{t=1}^{T}A_t,\qquad \bar F=\frac1T\sum_{t=1}^{T}F_t,\qquad
+\mathrm{HFE}=\frac1T\sum_{t=1}^{T}\mathbb 1(F_t>0.7),\qquad \mathrm{BS}=\frac1T\sum_{t=0}^{T-1}b_t.
+\label{eq:metrics2}
+\end{equation}
+Because the reward contains $A_t$ and $F_t$ (Eq.~\eqref{eq:reward}), claims about cognitive sustainability are based on the reward-independent outcomes OT, WOT and CR, and are checked with an agent trained without cognitive reward terms (Section~\ref{sec:ablation}).}
 
 \subsection{Statistical analysis}
-Following recommendations for reliable RL evaluation \cite{henderson2018,agarwal2021}, we treat the training seed as the unit of replication for learned policies. For each seed, metrics are averaged over the 500 test days. We report the mean and standard deviation across seeds, and 95\% bootstrap confidence intervals \cite{efron1979} with 5000 resamples. Deterministic heuristics are summarised across test days. To compare AA-DQN with each baseline, we average AA-DQN over seeds for each test day and apply the two-sided Wilcoxon signed-rank test \cite{wilcoxon1945} to the 500 paired day-level differences. We report the matched-pairs rank-biserial correlation $r_{rb}$ as effect size, the win rate, and Holm-adjusted $p$-values \cite{holm1979} over the nine baseline comparisons. As a more conservative seed-level check, we also report how many of the ten seeds outperform each baseline.
+Following recommendations for reliable RL evaluation \cite{henderson2018,agarwal2021}, we treat the training seed as the unit of replication for learned policies. For each seed, metrics are averaged over the 500 test days. We report the mean and standard deviation across seeds, and 95\% bootstrap confidence intervals \cite{efron1979} with 5000 resamples. Deterministic heuristics are summarised across test days. To compare a learned agent with a baseline, we average the agent over its seeds for each test day and apply the two-sided Wilcoxon signed-rank test \cite{wilcoxon1945} to the 500 paired day-level differences. We report the matched-pairs rank-biserial correlation $r_{rb}$ as effect size, the win rate, and Holm-adjusted $p$-values \cite{holm1979} over the nine baseline comparisons. As a more conservative seed-level check, we also report how many of the ten seeds outperform each baseline.
+
+\subsection{How the parameters were set}\label{sec:paramsel}
+\rev{\revnote{R3.2; R4.6}Parameters fall into three groups, and each was set without using the test days. (i) \emph{Simulator parameters} (Table~\ref{tab:params}) were fixed a priori to reproduce qualitative patterns from the time-on-task and fatigue literature (Section~\ref{sec:problem}). Their influence is quantified by a one-at-a-time $\pm30\%$ sensitivity analysis and by worker-profile tests (Sections~\ref{sec:sensitivity} and~\ref{sec:robust}). (ii) \emph{Agent hyperparameters} (Table~\ref{tab:hparams}) are standard values from the DQN and PPO literature \cite{mnih2015,vanhasselt2016,wang2016dueling,schulman2017} and were not tuned on test data. Their sensitivity is reported for the learning rate, the discount factor, the history length and each architectural component (Section~\ref{sec:sensitivity}). (iii) \emph{Heuristic parameters} were tuned by grid search on dedicated tuning days, as described above. The training budget (5000 episodes) and the action set were fixed once, before the final experiments, as documented in Supplementary Section~\ref{S-sec:s-audit}.}
 
 \subsection{Implementation}
 The simulator, agents and baselines are implemented in Python with NumPy and PyTorch \cite{paszke2019}. Table~\ref{tab:hparams} lists the hyperparameters. Training used one CPU thread per run. The code, configuration files, raw per-day results and analysis scripts are released (see Data availability) so that every number and figure in this paper can be regenerated with a single command.
 
 \begin{table}[!htbp]
 \centering
-\caption{Agent hyperparameters (shared by DQN and AA-DQN unless stated).}
+\caption{Agent hyperparameters. AA-PPO uses the same observation history, action sets, training budget and checkpoint selection as AA-DQN.}
 \label{tab:hparams}
 \small
 \begin{tabular}{lll}
@@ -49,6 +68,14 @@ Exploration & \multicolumn{2}{c}{$\epsilon$: $1.0\rightarrow0.01$, exponential (
 Action set & \multicolumn{2}{c}{\{\textsc{easy}, \textsc{hard}, \textsc{edf}, \textsc{spt}, \textsc{break}\}} \\
 Training budget & \multicolumn{2}{c}{5\,000 episodes = 240\,000 decisions} \\
 Checkpoint selection & \multicolumn{2}{c}{best greedy return on 100 validation days, every 100 episodes} \\
+\midrule
+\multicolumn{3}{l}{\emph{AA-PPO}} \\
+Network & \multicolumn{2}{c}{shared body 2 $\times$ 128, tanh; linear policy and value heads} \\
+Optimiser, learning rate & \multicolumn{2}{c}{Adam ($\epsilon=10^{-5}$), $3\times10^{-4}$} \\
+Rollout length, epochs, minibatch & \multicolumn{2}{c}{2\,048 steps (completed episodes), 10, 256} \\
+Clip $\varepsilon_{\mathrm{c}}$, GAE $\lambda_{\mathrm{GAE}}$, discount & \multicolumn{2}{c}{0.2, 0.95, 0.99} \\
+Value / entropy coefficients, gradient clip & \multicolumn{2}{c}{0.5 / 0.01, $\|\nabla\|_2\le0.5$} \\
+Action at test time & \multicolumn{2}{c}{$\arg\max_a\pi_\theta(a\mid x)$ (greedy)} \\
 \bottomrule
 \end{tabular}
 \end{table}

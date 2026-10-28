@@ -2,33 +2,36 @@
 \usepackage[a4paper,margin=2.4cm]{geometry}
 \usepackage[T1]{fontenc}
 \usepackage{newtxtext,newtxmath}
+\usepackage{enumitem}
 \usepackage[hidelinks]{hyperref}
 \input{numbers}
+\setlist{itemsep=1pt,topsep=3pt}
 \signature{Dr.\ Rajay Vedaraj I.S.\\Corresponding author, on behalf of all authors\\Vellore Institute of Technology, Vellore 632014, Tamil Nadu, India\\\href{mailto:rajay@vit.ac.in}{rajay@vit.ac.in}}
 \address{Vellore Institute of Technology\\Vellore 632014, Tamil Nadu, India}
 \date{\today}
 \begin{document}
-\begin{letter}{The Editor-in-Chief\\\textit{Results in Engineering}\\Elsevier}
-\opening{Dear Editor,}
+\begin{letter}{Dr.\ Manisha Aswal\\Scientific Handling Editor\\\textit{Array}\\Elsevier}
+\opening{Dear Dr.\ Aswal,}
 
-We are pleased to submit our original research article entitled \textbf{``Attention-aware task scheduling under partial observability of human cognitive state: a memory-augmented deep reinforcement learning approach''} for consideration for publication in \textit{Results in Engineering}.
+Please find enclosed the revised version of our manuscript ARRAY-D-26-01253, \textbf{``Attention-Aware Task Scheduling via Deep Reinforcement Learning under Partial Observability for Human-Centric Productivity Optimization''}. We thank you and the two reviewers for constructive comments, which identified real weaknesses of the original submission. We have used them to revise the study itself, not only the text: all experiments were redesigned and re-run, new experiments were added, and the manuscript was rewritten. The author list is unchanged.
 
-Conventional dispatching rules such as FIFO and Earliest Deadline First assume that the resource executing the work has constant capacity. People do not: their attention is depleted by sustained effort, fatigue accumulates, alertness follows a circadian rhythm, and well-timed breaks restore capacity. Moreover, a person's cognitive state can only be estimated from noisy proxies. Our manuscript formulates human-centric task scheduling as a partially observable Markov decision process in which rest is an explicit scheduling action, and solves it with an attention-aware deep Q-network that combines an observation history with Double Q-learning and a dueling architecture.
-
-The main contributions are:
+The main revisions are:
 \begin{itemize}
-  \item a cognitively grounded, fully specified and openly released scheduling simulator, combining homeostatic attention, exponential fatigue--recovery and circadian dynamics with stochastic task arrivals and deadlines;
-  \item a POMDP formulation with noisy cognitive observations and a multi-objective reward whose productivity--fatigue trade-off is characterised as a Pareto front;
-  \item a rigorous evaluation against nine rule-based schedulers, including grid-tuned EDF and SPT rules with periodic or state-triggered rest that see the same noisy signals, using 82 trained agents, ten seeds per main configuration, 500 held-out test days with common random numbers, and multiplicity-corrected paired tests;
-  \item evidence on \emph{why} learning helps, from environment and component ablations, behavioural analysis and zero-shot robustness tests across sensor noise, worker profiles and workloads.
+\item \textbf{Novelty and positioning} (Editor, Reviewer~4). A new paragraph in the Introduction states the four elements that distinguish the work from fatigue-aware scheduling and human--robot task allocation, and the related work and positioning table were extended with recent human-aware scheduling studies.
+\item \textbf{Stronger baselines and a second DRL algorithm} (Reviewer~4). The study now compares a value-based learner (AA-DQN) and a new policy-gradient learner (AA-PPO) with nine rule-based schedulers, five of which are grid-tuned and cognition-aware, and with a vanilla DQN.
+\item \textbf{Rigorous evaluation} (Reviewer~4). Ten training seeds per main configuration, 500 held-out test days with common random numbers, disjoint seed sets for training, validation, tuning and testing, bootstrap confidence intervals, and Holm-corrected Wilcoxon tests with effect sizes. In total, 114 agents were trained.
+\item \textbf{Reward-independent metrics} (Reviewer~4). Conclusions are based on the on-time rate, deadline violations, completion rate and a difficulty-weighted (workload-adjusted) on-time rate, with a control agent trained without cognitive reward terms.
+\item \textbf{Complete specification} (Reviewers~3 and~4). Transition rules, dispatch function and deadline logic are formalised, all parameters are listed with their sources, and all hyperparameters and the way every parameter was set are reported.
+\item \textbf{Sensitivity analyses} (Reviewer~3). New experiments vary the learning rate, discount factor, history length, network components and reward weight, and each of the seven cognitive parameters by $\pm30\%$.
+\item \textbf{Corrected conclusions} (Reviewer~4). The original claim that learning helps only when cognition is modelled was contradicted by the new controlled ablations and has been retracted.
+\item \textbf{Presentation} (Editor, Reviewer~3). A Nomenclature, numbered equations, 13 recent references (including the one suggested), a discussion of advantages and disadvantages, an extended limitations section, a graphical abstract, five highlights, and the Ethics, Data availability, CRediT, Competing interest, Funding and AI-use statements. The manuscript was proofread throughout.
 \end{itemize}
-On held-out days, rules that never rest perform poorly (EDF completes only \edfOnTimePct\% of tasks on time). The pre-specified agent matches the return of the best of nine tuned rules and completes more tasks on time (\aaOnTimePct\% versus \bestHeurOnTimePct\%). A compact variant, reported transparently as a secondary analysis, significantly exceeds the best rule in return and completes \AADQNThreeactOnTimePct\% of tasks on time. The learned policies are the only ones that maximise on-time completion while also protecting demanding tasks, and their advantage grows markedly when cognitive-state estimates are accurate. We report where learning does \emph{not} help as carefully as where it does.
 
-We believe the work suits the readership of \textit{Results in Engineering}, because it addresses an engineering design problem at the interface of artificial intelligence, industrial engineering and human factors that is central to human-centric (Industry~5.0) systems. The results are fully reproducible from the released code and data.
+With the stronger protocol, the results are more modest than in the original draft but much more trustworthy. Rules that never rest perform poorly (EDF completes \EDFOnTimePct\% of tasks on time), and tuned rest rules are strong. The best learner, AA-PPO, significantly exceeds the best of nine tuned rules in return (\PPOReturn{} versus \bestHeurReturn) and on-time completion (\PPOOnTimePct\% versus \bestHeurOnTimePct\%). We also report where learning does not help, notably on unseen workloads.
 
-We confirm that this manuscript is original, has not been published previously, and is not under consideration for publication elsewhere. All authors have approved the manuscript and agree with its submission. The authors declare no competing interests. No human-subject data were collected. The use of AI-assisted tools during preparation is disclosed in the manuscript in accordance with Elsevier policy.
+We enclose a point-by-point response to all comments, a highlighted version of the manuscript, in which the passages that answer a comment are printed in blue and tagged with the comment number, a clean version, the revised supplementary material, the graphical abstract and the highlights. Because nearly every section was rewritten, a word-level comparison would mark almost every sentence; the tagged highlighting is intended to make the responses easy to locate.
 
-Thank you for considering our submission. We look forward to hearing from you.
+We confirm that the manuscript is original, has not been published previously and is not under consideration elsewhere, and that all authors have approved the revised version.
 
 \closing{Yours sincerely,}
 \end{letter}

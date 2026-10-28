@@ -1,34 +1,14 @@
 \section{Problem formulation}\label{sec:problem}
 
-We consider a single worker who processes a stream of tasks during one workday. A scheduler, which could be a digital assistant, a workflow-management system or a supervisory controller in a human--robot cell, decides at regular intervals what the worker should do next: start or continue an easy task, a hard task, or take a short break. The worker's capacity depends on a latent cognitive state that evolves with the schedule. Table~\ref{tab:notation} summarises the notation and Table~\ref{tab:params} lists the parameter values.
-
-\begin{table}[!htbp]
-\centering
-\caption{Notation.}
-\label{tab:notation}
-\small
-\begin{tabular}{ll}
-\toprule
-Symbol & Meaning \\
-\midrule
-$t\in\{0,\dots,T-1\}$, $\Delta$ & decision slot index and slot length ($T=48$, $\Delta=10$ min) \\
-$h_t$ & clock time of slot $t$ (h), $h_t=9+t\Delta/60$ \\
-$a_i, d_i, w_i, D_i$ & arrival slot, difficulty, work content and deadline of task $i$ \\
-$H_t$ & homeostatic attention resource (latent) \\
-$c(h)$, $A_t$ & circadian modulation and effective attention, $A_t=\mathrm{clip}(H_t+\gamma c(h_t))$ \\
-$F_t$ & fatigue (latent) \\
-$\rho_t$ & work rate (work units completed per slot) \\
-$\tilde A_t,\tilde F_t$ & noisy observations of $A_t,F_t$ \\
-$o_t$, $x_t$ & observation vector and history window of length $k$ \\
-$u_t, b_t$ & indicators of working and resting in slot $t$ \\
-$r_t$ & scalar reward; $\lambda,\mu$ fatigue and attention weights \\
-$\gamma_{\mathrm{RL}}$ & RL discount factor (distinct from circadian amplitude $\gamma$) \\
-\bottomrule
-\end{tabular}
-\end{table}
+We consider a single worker who processes a stream of tasks during one workday. A scheduler, which could be a digital assistant, a workflow-management system or a supervisory controller in a human--robot cell, decides at regular intervals what the worker should do next: start or continue an easy task, a hard task, or take a short break. The worker's capacity depends on a latent cognitive state that evolves with the schedule. \rev{\revnote{R3.1}All symbols and abbreviations are listed in the Nomenclature, and Table~\ref{tab:params} lists the parameter values.}
 
 \subsection{Workload model}
-The day is divided into $T=48$ slots of $\Delta=10$ minutes (09:00--17:00). Each day contains $N=12$ tasks. Six tasks are available at the start of the day and the remaining six arrive at slots drawn uniformly from $\{1,\dots,\lfloor0.6T\rfloor\}$, which models interruptions and new requests. Task $i$ has difficulty $d_i\sim\mathcal U[0.2,1.0]$ and is labelled \emph{hard} if $d_i\ge0.6$ and \emph{easy} otherwise. Its work content is $w_i=1+2.5\,d_i$ work units, so a task requires between 1.5 and 3.5 slots (15--35 min) at full capacity. Its deadline is $D_i=\min\{T,\ a_i+\lceil s_iT\rceil\}$ with relative slack $s_i\sim\mathcal U[0.3,1.0]$. With these settings, the expected daily work content ($\approx\!30$ units) is below the capacity of a fully rested worker (48 units) but above what a worker can deliver once attention and fatigue degrade. Scheduling decisions therefore matter: the day is \emph{conditionally overloaded}.
+The day is divided into $T=48$ slots of $\Delta=10$ minutes (09:00--17:00). Each day contains $N=12$ tasks. Six tasks are available at the start of the day ($e_i=0$) and the remaining six arrive at slots $e_i$ drawn uniformly from $\{1,\dots,\lfloor0.6T\rfloor\}$, which models interruptions and new requests. Task $i$ has difficulty $d_i\sim\mathcal U[0.2,1.0]$ and is labelled \emph{hard} if $d_i\ge0.6$ and \emph{easy} otherwise. Its work content and deadline are
+\begin{equation}
+w_i=1+2.5\,d_i,\qquad D_i=\min\{T,\ e_i+\lceil s_iT\rceil\},\qquad s_i\sim\mathcal U[0.3,1.0],
+\label{eq:task}
+\end{equation}
+so a task requires between 1.5 and 3.5 slots (15--35 min) at full capacity and its relative slack $s_i$ ranges from 30\% to 100\% of the day. With these settings, the expected daily work content ($\approx\!30$ units) is below the capacity of a fully rested worker (48 units) but above what a worker can deliver once attention and fatigue degrade. Scheduling decisions therefore matter: the day is \emph{conditionally overloaded}.
 
 \subsection{Cognitive dynamics}
 \paragraph{Effective attention}
@@ -62,7 +42,10 @@ While working on task $i$, the worker completes
 \rho_t=\rho_0\,A_t^{\,0.5+d_i}\,(1-\kappa F_t)
 \label{eq:rho}
 \end{equation}
-work units in slot $t$, with $\rho_0=1$ and $\kappa=0.5$. The exponent makes hard tasks more sensitive to attention than easy ones (Fig.~S1 in the Supplementary Material), in line with resource theories in which demanding tasks draw more heavily on limited capacity \cite{kahneman1973,wickens2008}. The fatigue factor reduces throughput multiplicatively \cite{boksem2008,hockey2013}. A task is complete at the end of the first slot in which its cumulative work reaches $w_i$.
+work units in slot $t$, with $\rho_0=1$ and $\kappa=0.5$. The exponent makes hard tasks more sensitive to attention than easy ones (Supplementary Fig.~\ref{S-fig:s-eff}), in line with resource theories in which demanding tasks draw more heavily on limited capacity \cite{kahneman1973,wickens2008}. The fatigue factor reduces throughput multiplicatively \cite{boksem2008,hockey2013}. How the work rate drives task completion and deadline outcomes is formalised in Section~\ref{sec:transitions}.
+
+\rev{\revnote{R4.2}\paragraph{Modelling choices}
+The model is deliberately parsimonious, but it is neither deterministic nor sinusoidal. Attention is perturbed by Gaussian process noise ($\sigma_p$ in Eq.~\eqref{eq:H}). The circadian term is the sum of two Gaussian components (a late-morning peak and a post-lunch trough, Eq.~\eqref{eq:attention}), as in the three-process model of alertness \cite{akerstedt1997}, rather than a sinusoid. Attention and fatigue are coupled through $\phi$ and jointly determine productivity through Eq.~\eqref{eq:rho}. Each functional form has a direct counterpart in the literature: exponential depletion and recovery in fatigue--recovery models \cite{jaber2010,jaber2013}, resource depletion in vigilance research \cite{warm2008,thomson2015} and additive homeostatic and circadian components in biomathematical alertness models \cite{akerstedt1997,hursh2004}. Individual variability is represented in three ways. Initial states are random. The rate parameters are scaled for resilient and fatigue-prone profiles (Section~\ref{sec:robust}). Every cognitive parameter is perturbed by $\pm30\%$ in a sensitivity analysis (Section~\ref{sec:sensitivity}). The model is not calibrated to individual data, which we state as a limitation (Section~\ref{sec:limitations}).}
 
 \paragraph{Initial state and behavioural plausibility}
 Each day starts with $H_0\sim\mathcal U[0.8,1.0]$ and $F_0\sim\mathcal U[0,0.15]$. Parameters were chosen \emph{a priori} to reproduce qualitative patterns reported in the time-on-task and fatigue literature rather than fitted to a particular dataset. Under continuous work without breaks, attention falls from $\approx\!1.0$ to $\approx\!0.3$ by the end of the day, with a visible early-afternoon trough, and fatigue rises to $\approx\!0.85$. One 10-minute break recovers 30\% of the attentional deficit and 20\% of accumulated fatigue (Fig.~\ref{fig:dynamics}b,c). Because no single parameterisation can represent all workers, Section~\ref{sec:robust} evaluates the policies zero-shot on resilient and fatigue-prone profiles in which all four rate parameters are scaled by $\pm30\%$.
@@ -87,12 +70,37 @@ o_t=\Big[\tfrac{t}{T},\ \tilde A_t,\ \tilde F_t,\ \underbrace{\tfrac{n^e_t}{N},\
 \end{equation}
 where, for each class, $n_t$ is the number of available unfinished tasks, $W_t$ their remaining work, $\sigma_t=\mathrm{clip}\big((\min_i D_i-t)/T,-1,1\big)$ the normalised slack of the most urgent task (1 if the class is empty), $m_t$ the number of overdue tasks, and $\omega_t$ the remaining work of the shortest task (0 if the class is empty). Unlike a binary completion vector, this summary is invariant to the number of tasks and exposes the deadline information that urgency-aware scheduling requires. The worker's true state and the future arrivals are hidden, so the decision problem is a POMDP $\langle\mathcal S,\mathcal A,P,R,\Omega,O,\gamma_{\mathrm{RL}}\rangle$ \cite{kaelbling1998}. Here $\mathcal S$ contains the full task set and $(H_t,F_t,t)$, $\Omega$ is the observation space of Eq.~\eqref{eq:o}, $O$ is given by Eq.~\eqref{eq:obs}, and $P$ by Eqs.~\eqref{eq:attention}--\eqref{eq:rho} together with the arrival process.
 
-\subsection{Action space}
+\subsection{Action space}\label{sec:actions}
 The agent chooses among five macro-actions,
 \begin{equation}
 \mathcal A=\{\textsc{easy},\ \textsc{hard},\ \textsc{edf},\ \textsc{spt},\ \textsc{break}\}.
+\label{eq:actions}
 \end{equation}
 \textsc{easy} (\textsc{hard}) dispatches the available easy (hard) task with the earliest deadline, falling back to the other class if the chosen class is empty. \textsc{edf} and \textsc{spt} dispatch, across both classes, the task with the earliest deadline or the least remaining work. \textsc{break} allocates the slot to rest, and the worker also rests when no task is available. The first two actions let the agent regulate the cognitive \emph{intensity} of work relative to the worker's state. The two rule actions let it switch between urgency-driven and throughput-driven sequencing, in the spirit of DRL schedulers that select among dispatching rules \cite{luo2020,panzer2022}. This hybrid design has an important methodological consequence: every rule-based baseline in Section~\ref{sec:baselines} can be expressed as a policy over $\mathcal A$, so a learned policy is never handicapped relative to the baselines by its action space. Section~\ref{sec:component} reports an agent restricted to the intensity actions $\{\textsc{easy},\textsc{hard},\textsc{break}\}$ of the original formulation. The action space is independent of $N$, and tasks are preemptible at slot boundaries, which is common in knowledge work.
+
+\subsection{Decision epochs, task progression and deadlines}\label{sec:transitions}
+\rev{\revnote{R4.3}Decisions are taken at the start of every slot $t=0,\dots,T-1$. Let $\mathcal P_t=\{i: e_i\le t,\ \tau_i>t\}$ be the set of available unfinished tasks, where $\tau_i$ is the completion slot of task $i$ (initially $\infty$), and let $R_{i,t}$ be its remaining work ($R_{i,0}=w_i$). A macro-action $a_t\in\mathcal A$ is mapped to a task $j_t=g(a_t,\mathcal P_t)\in\mathcal P_t\cup\{\varnothing\}$ by the dispatch function
+\begin{equation}
+g(a,\mathcal P)=\begin{cases}
+\arg\min_{i\in\mathcal P\cap\mathcal E} D_i & a=\textsc{easy}\ \ (\text{or } \arg\min_{i\in\mathcal P}D_i \text{ if } \mathcal P\cap\mathcal E=\varnothing),\\
+\arg\min_{i\in\mathcal P\cap\mathcal H} D_i & a=\textsc{hard}\ \ (\text{or } \arg\min_{i\in\mathcal P}D_i \text{ if } \mathcal P\cap\mathcal H=\varnothing),\\
+\arg\min_{i\in\mathcal P} D_i & a=\textsc{edf},\\
+\arg\min_{i\in\mathcal P} R_{i,t} & a=\textsc{spt},\\
+\varnothing & a=\textsc{break}\ \text{or}\ \mathcal P=\varnothing,
+\end{cases}
+\label{eq:dispatch}
+\end{equation}
+where $\mathcal E$ and $\mathcal H$ are the easy and hard tasks and ties are broken by task index. If $j_t\neq\varnothing$ the worker works ($u_t=1$, $b_t=0$) and the remaining work of the selected task decreases by the current work rate:
+\begin{equation}
+R_{j_t,t+1}=\max\{0,\ R_{j_t,t}-\rho_t\},\qquad \tau_{j_t}=t+1\ \text{ if } R_{j_t,t+1}=0,
+\label{eq:progress}
+\end{equation}
+while all other tasks are unchanged. Otherwise the worker rests ($u_t=0$, $b_t=1$). The cognitive state is then updated with Eqs.~\eqref{eq:H}--\eqref{eq:F}, the clock advances to $t+1$, and the sets of tasks completed and deadlines missed in slot $t$ are
+\begin{equation}
+\mathcal C_t=\{i:\tau_i=t+1\},\qquad \mathcal M_t=\{i: D_i=t+1,\ \tau_i>t+1\}.
+\label{eq:events}
+\end{equation}
+A task completed after its deadline counts as late, and a task still unfinished at $t=T$ has necessarily missed its deadline, because $D_i\le T$. Preemption is allowed at slot boundaries, so the agent can interrupt a long task to insert a break or an urgent task. These rules make the interaction between scheduling decisions, time progression and deadline violations fully explicit. The pseudo-code of one slot is given in Supplementary Section~\ref{S-sec:s-spec}.}
 
 \subsection{Reward}
 The per-slot reward combines task outcomes with cognitive terms:
@@ -100,7 +108,11 @@ The per-slot reward combines task outcomes with cognitive terms:
 r_t=\underbrace{\sum_{i\in\mathcal C_t}(1+d_i)\big[\mathbb 1(t+1\le D_i)+0.25\,\mathbb 1(t+1>D_i)\big]-0.5\,|\mathcal M_t|}_{r^{\text{task}}_t}\;+\;\mu A_{t+1}\;-\;\lambda F_{t+1},
 \label{eq:reward}
 \end{equation}
-where $\mathcal C_t$ is the set of tasks completed in slot $t$, $\mathcal M_t$ is the set of tasks whose deadline expires unfinished at the end of slot $t$, $\mu=0.05$ and $\lambda=0.10$. Harder tasks are worth more, late completion retains a quarter of the value, and each missed deadline costs $0.5$. The attention and fatigue terms express the organisation's preference for sustainable work. Because such terms can change the optimal policy \cite{ng1999}, we (i) report reward-independent operational metrics (on-time rate, completion, fatigue exposure) alongside the return, (ii) train an agent with $\lambda=\mu=0$ to show that the learned behaviour is driven by the dynamics rather than by the reward terms, and (iii) sweep $\lambda$ to trace the productivity--fatigue Pareto front. The objective is to find a policy $\pi$ that maps observation histories to actions and maximises $\mathbb E_\pi\big[\sum_{t=0}^{T-1}\gamma_{\mathrm{RL}}^t r_t\big]$.
+where $\mathcal C_t$ is the set of tasks completed in slot $t$, $\mathcal M_t$ is the set of tasks whose deadline expires unfinished at the end of slot $t$, $\mu=0.05$ and $\lambda=0.10$. Harder tasks are worth more, late completion retains a quarter of the value, and each missed deadline costs $0.5$. The attention and fatigue terms express the organisation's preference for sustainable work. Because such terms can change the optimal policy \cite{ng1999}, we (i) report reward-independent operational metrics (on-time rate, completion, fatigue exposure) alongside the return, (ii) train an agent with $\lambda=\mu=0$ to show that the learned behaviour is driven by the dynamics rather than by the reward terms, and (iii) sweep $\lambda$ to trace the productivity--fatigue Pareto front. The objective is to find a policy $\pi$ that maps observation histories to actions and maximises the expected discounted return
+\begin{equation}
+J(\pi)=\mathbb E_\pi\Big[\sum_{t=0}^{T-1}\gamma_{\mathrm{RL}}^t\, r_t\Big].
+\label{eq:objective}
+\end{equation}
 
 \begin{table}[!htbp]
 \centering

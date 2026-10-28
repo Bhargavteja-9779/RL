@@ -1,0 +1,31 @@
+\rev{\subsection{Advantages and disadvantages of the approach}\label{sec:procons}\revnote{R3.5; Ed.}
+Table~\ref{tab:procons} summarises where the learned schedulers are, and are not, preferable to tuned rules. We discuss each point in turn.
+
+\emph{Advantages.} (i) \emph{Performance.} The best learner exceeds the best of nine tuned rules on return, on-time rate and difficulty-weighted on-time rate (Section~\ref{sec:main}), with paired, multiplicity-corrected tests over 500 held-out days. The gain is moderate, not dramatic. Its source is the integration of several criteria that individual rules trade off: high throughput, protection of demanding tasks and well-timed rest. (ii) \emph{No hand-design of the trade-off.} A rule needs a designer to decide how urgency, processing time, difficulty and the worker's state should be combined. The learner discovers a combination from the reward, and the weight $\lambda$ makes the productivity--well-being trade-off explicit (Section~\ref{sec:pareto}). (iii) \emph{Graceful degradation under sensor noise.} Because the policies integrate a history of observations, their performance hardly changes between perfect and very noisy state estimates, whereas reactive threshold rules lose up to one return unit (Section~\ref{sec:robust}). (iv) \emph{Benefit from better sensing.} With accurate estimates, the advantage of learning grows markedly, whereas the rules gain nothing (Section~\ref{sec:ablation}). Investments in state estimation thus translate into better schedules only with an adaptive policy. (v) \emph{Low run-time cost.} A decision takes microseconds and is independent of the number of tasks (Section~\ref{sec:cost}).
+
+\emph{Disadvantages.} (i) \emph{Generalisation to unseen workloads.} Policies trained on 12 tasks per day lose to simple rules on 8 or 16 tasks, and domain randomisation did not close the gap (Section~\ref{sec:robust}). A tuned rule only needs to be re-tuned, which is cheap. (ii) \emph{Training cost and model dependence.} Each learner needs about $2.4\times10^5$ simulated decisions and therefore a simulator that is faithful enough to the deployment setting, whereas a rule can be tuned on a few hundred days or even set by hand. (iii) \emph{Transparency.} A threshold rule can be explained in one sentence and audited directly. The learned policies are neural networks, and their behaviour can only be described a posteriori (Section~\ref{sec:behaviour}). (iv) \emph{Seed variability and model selection.} Learned policies vary between training seeds and between checkpoints of one run, so validation-based selection and several seeds are needed (Section~\ref{sec:main}). (v) \emph{Small margins in the nominal setting.} With realistic sensor noise, a well-tuned rest rule achieves most of the attainable return. When transparency or data are limiting, a tuned SPT rule with state-triggered rest is a strong and simple alternative.
+
+In short, the approach is superior when cognitive-state estimates are reasonably accurate, when several criteria must be balanced, and when the operating conditions resemble the training conditions. A tuned rest rule is preferable when conditions change frequently, when no faithful simulator is available, or when every decision must be explained.
+
+\begin{table}[!htbp]
+\centering
+\caption{Advantages and disadvantages of the learned schedulers relative to tuned rule-based schedulers.}
+\label{tab:procons}
+\small
+\begin{tabular}{p{2.6cm}p{5.6cm}p{5.6cm}}
+\toprule
+Aspect & Learned schedulers (AA-DQN, AA-PPO) & Tuned rules (e.g.\ SPT-Threshold) \\
+\midrule
+Nominal performance & highest return and on-time rates (moderate margin) & close behind; most of the attainable return \\
+Balancing criteria & combines throughput, hard-task protection and rest & each rule favours one criterion \\
+Sensor noise & insensitive ($\sigma_o=0$--$0.3$) & threshold rules degrade with noise \\
+Better sensing & advantage grows markedly & no gain \\
+Unseen workloads & degrade; need retraining or better training design & robust after cheap re-tuning \\
+Design effort & reward design, training, model selection & small grid search \\
+Data requirement & faithful simulator, $\sim\!2.4\times10^5$ decisions & a few hundred simulated days \\
+Transparency & black box; explained a posteriori & fully transparent and auditable \\
+Run-time cost & microseconds per decision & negligible \\
+\bottomrule
+\end{tabular}
+\end{table}
+}

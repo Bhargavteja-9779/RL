@@ -1,25 +1,34 @@
-\section{Attention-aware deep Q-network}\label{sec:method}
-Figure~\ref{fig:framework} gives an overview of the closed loop between the simulated workday and the learning agent.
+\section{Attention-aware deep reinforcement learning}\label{sec:method}
+\rev{\revnote{R4.4}The framework has three learner-independent elements: the observation history that approximates the belief state, the action sets of Section~\ref{sec:actions} and the reward of Eq.~\eqref{eq:reward}. We instantiate it with a value-based learner (AA-DQN, Sections~\ref{sec:dqn}--\ref{sec:dueling}) and a policy-gradient learner (AA-PPO, Section~\ref{sec:aappo}).} Figure~\ref{fig:framework} gives an overview of the closed loop between the simulated workday and the learning agent.
 
 \begin{figure}[!htbp]
 \centering
 \includegraphics[width=\textwidth]{figures/framework.pdf}
-\caption{Overview of the attention-aware scheduling framework. The worker's cognitive state is latent; the agent receives noisy estimates together with a queue summary, encodes a short observation history, and selects an intensity class, a dispatching rule or a break. Transitions are stored in a replay buffer and used to train a dueling Q-network with Double-DQN targets.}
+\caption{Overview of the attention-aware scheduling framework. The worker's cognitive state is latent; the agent receives noisy estimates together with a queue summary, encodes a short observation history, and selects an intensity class, a dispatching rule or a break. In AA-DQN (shown), transitions are stored in a replay buffer and used to train a dueling Q-network with Double-DQN targets; in AA-PPO, the same history feeds an actor--critic network trained on on-policy rollouts.}
 \label{fig:framework}
 \end{figure}
 
-\subsection{From Q-learning to deep Q-networks}
-For a fully observable MDP, the optimal action-value function satisfies the Bellman optimality equation
-$Q^*(s,a)=\mathbb E\big[r+\gamma_{\mathrm{RL}}\max_{a'}Q^*(s',a')\,\big|\,s,a\big]$ \cite{puterman1994,sutton2018}, and tabular Q-learning converges to $Q^*$ under standard conditions \cite{watkins1992}. With continuous cognitive variables, a tabular representation is infeasible, so $Q$ is approximated by a neural network $Q(\cdot,\cdot;\theta)$ trained to minimise the temporal-difference (TD) error. The DQN of Mnih et al.~\cite{mnih2015} stabilises this nonlinear approximation with an experience replay buffer \cite{lin1992}, which breaks the temporal correlation of samples, and a periodically synchronised target network $\bar\theta$. Convergence is not guaranteed for nonlinear function approximation \cite{tsitsiklis1997}, so we assess stability empirically across independent seeds.
+\subsection{From Q-learning to deep Q-networks}\label{sec:dqn}
+For a fully observable MDP, the optimal action-value function satisfies the Bellman optimality equation \cite{puterman1994,sutton2018}
+\begin{equation}
+Q^*(s,a)=\mathbb E\big[r+\gamma_{\mathrm{RL}}\max_{a'}Q^*(s',a')\,\big|\,s,a\big],
+\label{eq:bellman}
+\end{equation}
+and tabular Q-learning converges to $Q^*$ under standard conditions \cite{watkins1992}. With continuous cognitive variables, a tabular representation is infeasible, so $Q$ is approximated by a neural network $Q(\cdot,\cdot;\theta)$ trained to minimise the temporal-difference (TD) error. The DQN of Mnih et al.~\cite{mnih2015} stabilises this nonlinear approximation with an experience replay buffer \cite{lin1992}, which breaks the temporal correlation of samples, and a periodically synchronised target network $\bar\theta$. Convergence is not guaranteed for nonlinear function approximation \cite{tsitsiklis1997}, so we assess stability empirically across independent seeds.
 
 \subsection{Handling partial observability with an observation history}
-In a POMDP, the optimal policy is a function of the belief $b_t(s)=\Pr(s_t=s\mid o_{0:t},a_{0:t-1})$ \cite{astrom1965,kaelbling1998}. Exact belief tracking is intractable for our continuous, nonlinear dynamics, and a memoryless policy $\pi(o_t)$ can be arbitrarily suboptimal \cite{singh1994}. Two structural properties of the scheduling problem make a short history informative. First, the latent state is persistent. $H_t$ and $F_t$ change slowly relative to the observation noise, so averaging several consecutive estimates reduces the error: for $k$ independent observations of a quasi-static quantity, the standard error falls by a factor $\sqrt k$. Second, the trajectory of the observations, for example fatigue rising after consecutive hard tasks or attention recovering after a break, reveals the direction and rate of change, which a single noisy reading cannot. We therefore feed the network the window
+In a POMDP, the optimal policy is a function of the belief \cite{astrom1965,kaelbling1998}
+\begin{equation}
+\mathcal B_t(s)=\Pr\big(s_t=s\mid o_{0:t},a_{0:t-1}\big).
+\label{eq:belief}
+\end{equation}
+ Exact belief tracking is intractable for our continuous, nonlinear dynamics, and a memoryless policy $\pi(o_t)$ can be arbitrarily suboptimal \cite{singh1994}. Two structural properties of the scheduling problem make a short history informative. First, the latent state is persistent. $H_t$ and $F_t$ change slowly relative to the observation noise, so averaging several consecutive estimates reduces the error: for $k$ independent observations of a quasi-static quantity, the standard error falls by a factor $\sqrt k$. Second, the trajectory of the observations, for example fatigue rising after consecutive hard tasks or attention recovering after a break, reveals the direction and rate of change, which a single noisy reading cannot. We therefore feed the network the window
 \begin{equation}
 x_t=[o_{t-k+1},\dots,o_t]\in\mathbb R^{13k},\qquad k=4,
 \end{equation}
 zero-padded at the start of the day. This is the finite-memory approximation used for Atari \cite{mnih2015}. It is computationally cheaper than recurrent alternatives \cite{hausknecht2015,igl2018} and is a strong baseline for many POMDPs \cite{ni2022}. A 40-minute window spans the time scale of a typical work bout. Section~\ref{sec:component} varies $k\in\{1,2,4,8\}$.
 
-\subsection{Double Q-learning and dueling architecture}
+\subsection{Double Q-learning and dueling architecture}\label{sec:dueling}
 Max-based targets overestimate action values in noisy environments \cite{vanhasselt2016}, and our environment is noisy by design. AA-DQN therefore uses the Double-DQN target, which decouples action selection (online network) from evaluation (target network):
 \begin{equation}
 y_t=r_t+\gamma_{\mathrm{RL}}(1-\textit{done}_t)\,Q\big(x_{t+1},\ \arg\max_{a'}Q(x_{t+1},a';\theta);\ \bar\theta\big).
@@ -27,17 +36,31 @@ y_t=r_t+\gamma_{\mathrm{RL}}(1-\textit{done}_t)\,Q\big(x_{t+1},\ \arg\max_{a'}Q(
 \end{equation}
 In many states, for example at the start of the day or when the queue is empty, the choice between easy and hard work matters much less than the value of the state itself. A dueling head \cite{wang2016dueling} represents this explicitly:
 \begin{equation}
-Q(x,a;\theta)=V(x;\theta)+\Big(A(x,a;\theta)-\tfrac1{|\mathcal A|}\textstyle\sum_{a'}A(x,a';\theta)\Big).
+Q(x,a;\theta)=V(x;\theta)+\Big(\mathrm{Adv}(x,a;\theta)-\tfrac1{|\mathcal A|}\textstyle\sum_{a'}\mathrm{Adv}(x,a';\theta)\Big).
 \end{equation}
 The shared body consists of two fully connected layers of 128 ReLU units. The loss is the Huber loss of the TD error, which is robust to the occasional large reward of a hard task completed on time \cite{huber1964}:
 \begin{equation}
-\mathcal L(\theta)=\mathbb E_{(x,a,r,x')\sim\mathcal D}\big[\ell_{\delta=1}\big(Q(x,a;\theta)-y\big)\big].
+\mathcal L(\theta)=\mathbb E_{(x,a,r,x')\sim\mathcal D}\big[\ell_{\delta=1}\big(Q(x,a;\theta)-y\big)\big],\qquad
+\ell_{\delta}(u)=\begin{cases}\tfrac12u^2, & |u|\le\delta,\\ \delta\big(|u|-\tfrac12\delta\big), & \text{otherwise.}\end{cases}
+\label{eq:huber}
 \end{equation}
 Parameters are updated with Adam \cite{kingma2015} and gradient-norm clipping. The vanilla DQN baseline uses the same action set and observation but $k=1$, the standard max target and a single linear output head. This isolates the contribution of memory and of the two stabilisation components.
 
+\subsection{Policy-gradient instantiation (AA-PPO)}\label{sec:aappo}
+\rev{\revnote{R4.4}The framework does not depend on a particular learning algorithm: the observation history, the action sets and the reward are shared, and only the learner changes. To test whether a policy-gradient learner exploits the same information better than a value-based one, we instantiate the framework with proximal policy optimisation \cite{schulman2017} and call the result AA-PPO. A stochastic policy $\pi_\theta(a\mid x)$ and a value function $V_\psi(x)$ share two hidden layers and are trained on rollouts of on-policy experience. Each update maximises the clipped surrogate objective
+\begin{equation}
+\mathcal L^{\mathrm{PPO}}(\theta)=\mathbb E_t\Big[\min\big(\varrho_t(\theta)\widehat{\mathrm{Adv}}_t,\ \mathrm{clip}(\varrho_t(\theta),1-\varepsilon_{\mathrm{c}},1+\varepsilon_{\mathrm{c}})\widehat{\mathrm{Adv}}_t\big)\Big]-c_v\,\mathbb E_t\big[(V_\psi(x_t)-\hat G_t)^2\big]+c_e\,\mathbb E_t\big[\mathbb H(\pi_\theta(\cdot\mid x_t))\big],
+\label{eq:ppo}
+\end{equation}
+where $\varrho_t(\theta)=\pi_\theta(a_t\mid x_t)/\pi_{\theta_{\mathrm{old}}}(a_t\mid x_t)$ is the probability ratio, $\widehat{\mathrm{Adv}}_t$ the generalised advantage estimate \cite{schulman2016gae}, $\hat G_t=\widehat{\mathrm{Adv}}_t+V_\psi(x_t)$ the return target, $\mathbb H$ the entropy, and $\varepsilon_{\mathrm{c}}=0.2$, $c_v=0.5$, $c_e=0.01$. At test time AA-PPO acts greedily, $a_t=\arg\max_a\pi_\theta(a\mid x_t)$. AA-PPO was added during the revision of this paper in response to a reviewer's request for an alternative DRL method. Its settings are the standard defaults and were not tuned (Section~\ref{sec:baselines}).}
+
 \subsection{Exploration and training procedure}
 Actions are selected $\epsilon$-greedily with an exponentially decaying exploration rate
-$\epsilon_n=\epsilon_{\min}+(\epsilon_{\max}-\epsilon_{\min})e^{-\kappa_\epsilon n}$, where $n$ is the environment step, $\epsilon_{\max}=1$ and $\epsilon_{\min}=0.01$, and $\kappa_\epsilon$ is set so that $\epsilon$ reaches 0.05 after half of the training budget. Algorithm~\ref{alg:aadqn} summarises training. Every 100 episodes, the greedy policy is evaluated on a fixed set of 100 \emph{validation} days that are disjoint from the training and test days, and the parameters with the highest validation return are retained. This mirrors the tuning of the heuristic baselines on their own held-out days (Section~\ref{sec:baselines}), so that both families receive the same model-selection budget and neither sees the test days. For transparency we also report the final-iterate policy (Supplementary Table~S2).
+\begin{equation}
+\epsilon_n=\epsilon_{\min}+(\epsilon_{\max}-\epsilon_{\min})\,e^{-\kappa_\epsilon n},
+\label{eq:eps}
+\end{equation}
+where $n$ is the environment step, $\epsilon_{\max}=1$ and $\epsilon_{\min}=0.01$, and $\kappa_\epsilon$ is set so that $\epsilon$ reaches 0.05 after half of the training budget. Algorithm~\ref{alg:aadqn} summarises training. Every 100 episodes, the greedy policy is evaluated on a fixed set of 100 \emph{validation} days that are disjoint from the training and test days, and the parameters with the highest validation return are retained. This mirrors the tuning of the heuristic baselines on their own held-out days (Section~\ref{sec:baselines}), so that both families receive the same model-selection budget and neither sees the test days. For transparency we also report the final-iterate policy (Supplementary Table~\ref{S-tab:s-ckpt}).
 
 \begin{algorithm}[t]
 \caption{Training of the attention-aware DQN (AA-DQN).}
@@ -50,7 +73,7 @@ $\epsilon_n=\epsilon_{\min}+(\epsilon_{\max}-\epsilon_{\min})e^{-\kappa_\epsilon
   \State sample a workday (tasks, initial state, noise); observe $o_0$; $x_0\gets[\mathbf 0,\dots,\mathbf 0,o_0]$
   \For{$t=0,\dots,T-1$}
     \State $a_t\gets$ random action with prob.\ $\epsilon_n$, else $\arg\max_a Q(x_t,a;\theta)$
-    \State dispatch $a_t$ (EDF within class or rest); simulate Eqs.~\eqref{eq:attention}--\eqref{eq:rho}; receive $r_t$ (Eq.~\eqref{eq:reward}) and $o_{t+1}$
+    \State dispatch $j_t=g(a_t,\mathcal P_t)$ (Eq.~\eqref{eq:dispatch}); simulate Eqs.~\eqref{eq:attention}--\eqref{eq:rho}; receive $r_t$ (Eq.~\eqref{eq:reward}) and $o_{t+1}$
     \State $x_{t+1}\gets$ shift$(x_t,o_{t+1})$; store $(x_t,a_t,r_t,x_{t+1},\textit{done}_t)$ in $\mathcal D$; $n\gets n+1$
     \If{$|\mathcal D|\ge$ warm-up}
       \State sample a minibatch of $B$ transitions; compute targets with Eq.~\eqref{eq:target}
