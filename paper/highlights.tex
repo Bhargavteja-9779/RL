@@ -3,14 +3,13 @@
 \usepackage[T1]{fontenc}
 \usepackage{newtxtext,newtxmath}
 \pagestyle{empty}
-\input{numbers}
 \begin{document}
 \section*{Highlights}
 \begin{itemize}
 \item Human task scheduling is cast as a POMDP with latent attention and fatigue.
-\item Rest breaks are explicit actions of a memory-augmented deep Q-network.
-\item Tuned rest rules are strong; learned agents match or beat the best of nine.
-\item Only learned policies protect hard tasks while maximising on-time completion.
-\item The value of learning grows sharply with the accuracy of cognitive sensing.
+\item Rest breaks are explicit actions of memory-augmented DQN and PPO schedulers.
+\item Tuned rest rules are strong; the PPO scheduler beats the best of nine rules.
+\item Learned policies alone protect hard tasks while maximising on-time completion.
+\item Results hold under sensor noise and $\pm$30\% changes of all cognitive parameters.
 \end{itemize}
 \end{document}

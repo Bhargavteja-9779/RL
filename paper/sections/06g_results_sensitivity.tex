@@ -1,0 +1,22 @@
+\rev{\subsection{Sensitivity to hyperparameters and simulator parameters}\label{sec:sensitivity}\revnote{R3.2}
+This subsection quantifies how the results depend on the parameters that were fixed a priori (Section~\ref{sec:paramsel}).
+
+\emph{Agent hyperparameters.} Table~\ref{tab:component} reports AA-DQN for three learning rates, three discount factors, four history lengths, a recurrent encoder and with each stabilisation component removed (three seeds each). Varying the learning rate from $5\times10^{-4}$ to $10^{-3}$ or the discount factor from $0.99$ to $0.999$ changes the return by less than 0.1 (\compAADQNLrOneeThreeRet{} and \compAADQNGZeroNineNineNineRet{} versus \compAADQNRet). Two settings are worse by about 0.45: a learning rate of $10^{-4}$ (\compAADQNLrOneeFourRet), which learns too slowly for the 5000-episode budget, and a discount factor of $0.95$ (\compAADQNGZeroNineFiveRet), whose effective horizon of about 20 slots (3.3~h) is shorter than the day, so that consequences of decisions for late deadlines are discounted away. All these settings remain well above the vanilla DQN (\DQNReturn). The history length has the largest effect ($k=1$: \compAADQNNoHistRet; $k=8$: \compAADQNKEightRet), as discussed in Section~\ref{sec:component}. AA-PPO used untuned default settings and nevertheless achieved the best results, so its performance is not the product of hyperparameter search. The reward weight $\lambda$ is analysed in Section~\ref{sec:pareto}.
+
+\emph{Simulator parameters.} Each of the seven cognitive parameters ($\alpha$, $\beta$, $\delta$, $\eta$, $\kappa$, $\gamma$, $\phi$) was decreased and increased by 30\%, one at a time, and every trained policy and tuned rule was evaluated, without retraining or re-tuning, on the 500 test days under each of the 14 perturbed models (Table~\ref{tab:simsens}, Fig.~\ref{fig:simsens}). This is a conservative test, because the learned policies and the rules are applied to dynamics they were not optimised for. The parameters that govern the depletion of attention ($\alpha$), the accumulation of fatigue ($\delta$) and its effect on throughput ($\kappa$) change the attainable return the most (by 1.2--1.4 for AA-PPO), whereas the circadian amplitude $\gamma$ and the fatigue coupling $\phi$ have small effects. The fixed work--rest cycle of EDF-Periodic is the most sensitive policy (a range of 2.3 for $\alpha$), because it cannot adapt the amount of rest. The ranking of the methods is remarkably stable. Both AA-PPO variants exceed the best rule in all \ssNConds{} perturbed models (AA-PPO by at least \ssPPOGapMin; best learned policy minus best rule between \ssGapMin{} and \ssGapMax), and the intensity-only AA-DQN does so in \ssAADQNThreeactWins{} of them. The hybrid AA-DQN, which ties with the best rule in the nominal model, falls slightly behind it in most perturbed models (\ssAADQNWins{} of \ssNConds{} wins; at worst by $\ssAADQNGapMin$). The main conclusions therefore do not hinge on the particular parameter values in Table~\ref{tab:params}, although, as for any simulation study, they cannot replace calibration with real data (Section~\ref{sec:limitations}).
+
+\begin{table}[!htbp]
+\centering
+\caption{Zero-shot sensitivity to the cognitive parameters: return on 500 test days when one parameter is changed by $\pm30\%$ (learned policies: mean of ten seeds; rules: parameters tuned in the nominal model). The last column gives the return of the best learned policy minus that of the best rule. Bold marks the best method in each row.}
+\label{tab:simsens}
+\small
+\resizebox{\textwidth}{!}{\input{tables/simsens}}
+\end{table}
+
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=\textwidth]{figures/fig_simsens.pdf}
+\caption{Return of selected policies after a $-30\%$ ($\triangleleft$) or $+30\%$ ($\triangleright$) change of one cognitive parameter (500 test days, zero-shot). The learned policies stay ahead of the rules for every parameter.}
+\label{fig:simsens}
+\end{figure}
+}

@@ -1,45 +1,42 @@
-# Submission guide
+# Revision guide: Array, ARRAY-D-26-01253 (due 17 Nov 2026)
 
-## Files to upload
+## Files to upload in Editorial Manager
 
-| File | Purpose |
+| Editorial Manager item | File |
 |---|---|
-| `manuscript.pdf` / `word/manuscript.docx` (+ LaTeX sources `manuscript.tex`, `sections/`, `figures/`, `tables/`, `numbers.tex`, `references.bib`) | Main manuscript (Elsevier `elsarticle`, review format with line numbers) |
-| `supplementary.pdf` / `word/supplementary.docx` | Supplementary material |
-| `cover_letter.pdf` / `word/cover_letter.docx` | Cover letter to the editor |
-| `highlights.pdf` / `word/highlights.docx` | Highlights (5 bullets, each ≤ 85 characters) |
-| `title_page.pdf` | Title page with author details (needed for double-anonymous journals) |
-| `figures/*.pdf` (vector) and `figures/*.png` (300 dpi) | Separate figure files if the journal asks for them |
-| `review/internal_review.pdf` | **Internal only. Do not upload.** Simulated reviewer reports and the responses to them |
+| Response to reviewers (rebuttal letter) | `response_to_reviewers.pdf` |
+| Revised manuscript, changes marked (highlighted version) | `manuscript_highlighted.pdf` |
+| Revised manuscript, clean version | `manuscript.pdf`, plus LaTeX sources (`manuscript.tex`, `sections/`, `figures/`, `tables/`, `numbers.tex`, `references.bib`) or `word/manuscript.docx` |
+| Cover letter | `cover_letter.pdf` (or `word/cover_letter.docx`) |
+| Graphical abstract | `figures/graphical_abstract.png` (2000 × 707 px), or `figures/graphical_abstract.pdf` |
+| Highlights | `highlights.pdf` (or `word/highlights.docx`): 5 bullets, each ≤ 85 characters |
+| Supplementary material | `supplementary.pdf` (or `word/supplementary.docx`) |
+| Title page, if requested | `title_page.pdf` |
+| Do not upload | `review/internal_review.pdf` (internal simulated review from the first submission) |
 
-## Recommended journals (Q1, not MDPI)
+## How the highlighted version works
 
-Review speeds below are the journals' own published medians or third-party estimates. They change over time and are not guarantees. **No Q1 journal guarantees acceptance within 60 days.** The first option is the closest match to that target that I found.
+Almost the whole manuscript was rewritten after the first submission, so a word-level diff would mark nearly every sentence. In `manuscript_highlighted.pdf`, each passage that answers a reviewer or editor comment is printed in **blue**, and a margin tag names the comment it answers (e.g. `R4.3`, `Ed.`). The response letter explains this choice. To rebuild it: `\def\HIGHLIGHT{1}\input{manuscript}` (this is the whole of `manuscript_highlighted.tex`). Wrap any further new text in `\rev{...}` and add `\revnote{R…}`.
 
-| Journal | Publisher | Quartile | Reported speed | Fit | Notes |
-|---|---|---|---|---|---|
-| **Results in Engineering** (primary target) | Elsevier, open access | JCR Q1 (IF ≈ 7.9) | ~6 days to first decision, ~32 days to decision after review, **~76 days median to acceptance** | Broad engineering + AI; welcomes rigorous simulation studies | APC ≈ USD 2,160. The manuscript is already formatted for it. |
-| Machine Learning with Applications | Elsevier, open access | Q1/Q2 (SJR) | ~89–102 days to acceptance | Applied ML | Faster than most AI journals |
-| Intelligent Systems with Applications | Elsevier, open access | JCR Q1–Q2 by category | ~131 days to acceptance | Intelligent decision systems | APC ≈ USD 1,500 |
-| Engineering Science and Technology, an International Journal | Elsevier, open access | SJR Q1 | ~112–183 days | Engineering applications | |
-| Computers & Industrial Engineering | Elsevier | Q1 | ~208 days to acceptance | Best topical fit (human-centric scheduling) | Slower, but highly relevant readership |
-| IEEE Access (fallback for speed) | IEEE, open access | **JCR Q2** (IF ≈ 3.6) | ~4–6 weeks to decision | Broad | Fast, but not Q1 in JCR |
+## Before you upload: points only the authors can confirm
 
-Sources: Results in Engineering insights page (sciencedirect.com/journal/results-in-engineering/about/insights); journalmetrics.org; journal pages for ISWA, MLWA, JESTECH, C&IE; IEEE Access "Rapid Peer Review" page. Check the current figures on each journal's "Journal insights" page before you submit.
+1. **Author list.** The editor does not allow adding or removing authors. The manuscript lists P. N. Bhargav Teja, Lanka Sree Chathurya and Rajay Vedaraj I.S. (corresponding author). Check that this matches the original Array submission exactly, including the order.
+2. **Data availability.** Make `https://github.com/bhargavteja-9779/rl` public, or create a Zenodo DOI, before resubmitting.
+3. **AI declaration.** The manuscript discloses the use of an AI assistant for code development, language editing and organisation. Keep the declaration and make sure all authors have read and approved the revised text.
+4. **Affiliations, e-mails and ORCID iDs.** Add these in `title_page.tex` and in Editorial Manager.
 
-## Checklist before submission: items only the authors can confirm
+## Rebuilding everything
 
-1. **Affiliations and e-mails.** The author block lists "Vellore Institute of Technology, Vellore 632014". Add each author's school or department and the two student e-mail addresses (`title_page.tex`), and confirm that the corresponding author is Dr. Rajay Vedaraj I.S. (rajay@vit.ac.in).
-2. **Author order and CRediT roles.** Check the contribution statement at the end of `manuscript.tex`.
-3. **Data availability.** The manuscript points to `https://github.com/bhargavteja-9779/rl`. Make the repository public (or create a Zenodo DOI) before submission.
-4. **Generative-AI declaration.** Elsevier requires one, and the manuscript includes it. Keep it, and make sure every author has read and approved the full text.
-5. **Funding and acknowledgements.** Edit if any grant or institutional support applies.
-6. **ORCID iDs.** Add them in the submission system.
-7. **Suggested reviewers.** Many Elsevier journals ask for 3–5. Choose researchers who work on human factors in scheduling or DRL for scheduling and who are not collaborators.
+```
+PYTHONPATH=. python3 -m analysis.analyze   # statistics, tables, figures, numbers.tex
+bash paper/build.sh                        # all PDFs and Word files
+```
+Every number quoted in the text comes from `numbers.tex`, so the prose, tables and figures cannot drift apart.
 
-## Honest summary of the findings (for the authors)
+## Summary of the revised findings
 
-- The pre-specified agent **matches** the best of nine tuned rules on return (not significantly different) and completes **more tasks on time**.
-- The compact intensity-only agent, a secondary analysis with 10 seeds, **beats** the best rule on return, on-time rate and difficulty-weighted on-time rate (p < 0.001). Because it was identified in a component study first, the paper presents it as secondary.
-- The learned agents are robust to sensor noise, and their advantage is large when cognitive-state estimates are accurate. They generalise poorly to unseen workloads (8 or 16 tasks per day). The paper states this as a limitation.
-- The earlier draft's claims (e.g. the 48% variance reduction, the "Figure X" bar chart, and "RL helps only when cognition is modelled") were not reproducible and have been replaced by results computed from the released code.
+- Rules that never rest perform poorly (EDF: 46.8% of tasks on time). Tuned rest rules are strong; the best is SPT-Threshold (return 12.30, 71.4% on time).
+- AA-DQN (hybrid actions) ties with SPT-Threshold on return and completes more tasks on time (72.8%).
+- AA-PPO, the policy-gradient learner added at Reviewer 4's request with untuned default settings, beats every rule. Against SPT-Threshold: return 13.04 (+0.73, 95% CI [0.60, 0.87]), 75.1% on time (+3.7 pp) and difficulty-weighted on-time rate +7.0 pp. All ten seeds beat the rule on each of these.
+- AA-PPO stays the best method under sensor noise, for both worker profiles, with 16 tasks per day, and in all 14 models where one cognitive parameter is changed by ±30%. With 8 tasks per day the EDF rules are slightly better. AA-DQN generalises poorly to unseen workloads.
+- The original claim that "RL helps only when cognition is modelled" was contradicted by the controlled ablations and is retracted in the paper and in the response.

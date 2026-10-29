@@ -388,9 +388,7 @@ def ablations(recs):
 
 
 def robustness():
-    f = RES / "robustness.csv"
-    if not f.exists():
-        f = RES / "robustness.csv.gz"
+    f = RES / "robustness.csv.gz"
     if not f.exists():
         return None
     df = pd.read_csv(f)
@@ -567,9 +565,10 @@ def behaviour():
         ax2.set_xlabel("Clock time (h)")
         if j == 0:
             ax2.set_ylabel("Latent state")
-    axes[0, 0].legend(loc="lower left", fontsize=6, framealpha=0.85, frameon=True)
-    axes[1, 0].legend(loc="lower right", fontsize=6)
-    fig.tight_layout(h_pad=0.6, w_pad=0.6)
+    h1, l1 = axes[0, 0].get_legend_handles_labels()
+    h2, l2 = axes[1, 0].get_legend_handles_labels()
+    fig.tight_layout(h_pad=0.6, w_pad=0.6, rect=(0, 0, 1, 0.94))
+    fig.legend(h1 + h2, l1 + l2, loc="upper center", ncol=5, fontsize=6.5, bbox_to_anchor=(0.5, 1.0))
     save(fig, "fig_behaviour")
 
     # timing statistics
@@ -781,6 +780,11 @@ def write_numbers():
         N["ssWorstParam"] = PARAM_LABEL[worst.param] + (r" $-30\%$" if worst.change == "m30" else r" $+30\%$")
         for m in [c for c in g.columns if c not in ("param", "change", "gap")]:
             N[f"ss{_cam(m)}Min"], N[f"ss{_cam(m)}Max"] = f"{g[m].min():.2f}", f"{g[m].max():.2f}"
+        rules = [c for c in ("SPT-Threshold", "SPT-Periodic", "EDF-Periodic", "EDF") if c in g.columns]
+        best_rule = g[rules].max(axis=1)
+        for m in [c for c in g.columns if c not in rules + ["param", "change", "gap"]]:
+            N[f"ss{_cam(m)}Wins"] = f"{int((g[m] > best_rule).sum())}"
+            N[f"ss{_cam(m)}GapMin"] = f"{(g[m] - best_rule).min():.2f}"
     if (SUM / "compute.csv").exists():
         c = pd.read_csv(SUM / "compute.csv").set_index("method")
         N["trainTimeAA"] = f"{c.loc['AA-DQN', 'train_time_s']:.0f}"

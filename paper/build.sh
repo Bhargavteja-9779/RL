@@ -8,7 +8,7 @@ cd "$(dirname "$0")"
 for pass in 1 2; do
   for f in manuscript supplementary manuscript_highlighted response_to_reviewers; do
     latexmk -pdf -interaction=nonstopmode -quiet "$f.tex" >/dev/null 2>&1 || echo "LaTeX failed: $f (pass $pass)"
-    [ $pass = 1 ] && latexmk -pdf -g -interaction=nonstopmode -quiet "$f.tex" >/dev/null 2>&1
+    [ $pass = 2 ] && latexmk -pdf -g -interaction=nonstopmode -quiet "$f.tex" >/dev/null 2>&1
   done
 done
 for f in cover_letter highlights title_page review/internal_review; do

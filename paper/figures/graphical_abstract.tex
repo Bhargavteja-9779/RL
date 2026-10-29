@@ -52,19 +52,19 @@
 % ---------------- panel 3: results
 \node[panel, fill=grayl, minimum width=5.6cm, right=0.75cm of p2] (p3) {};
 \node[ttl, anchor=north] at ($(p3.north)+(0,-0.12)$) {Tasks completed on time};
-\begin{scope}[shift={($(p3.north west)+(1.95,-0.95)$)}]
-  \def\barw{0.0335}
-  \foreach \lab/\val/\col [count=\i] in {EDF/\EDFOnTimePct/gray, Best tuned rule/\SPTThresholdOnTimePct/aqua, AA-DQN/\AADQNThreeactOnTimePct/blue, AA-PPO/\PPOThreeactOnTimePct/violet}{
+\begin{scope}[shift={($(p3.north west)+(2.3,-0.95)$)}]
+  \def\barw{0.029}
+  \foreach \lab/\val/\col [count=\i] in {EDF/\EDFOnTimePct/gray, Best tuned rule/\SPTThresholdOnTimePct/aqua, AA-DQN/\AADQNOnTimePct/blue, AA-PPO/\PPOOnTimePct/violet}{
     \pgfmathsetmacro{\w}{\val*\barw}
     \fill[\col] (0,{-(\i-1)*0.55}) rectangle (\w,{-(\i-1)*0.55-0.36});
     \node[anchor=east, font=\sffamily\footnotesize, text=ink] at (-0.06,{-(\i-1)*0.55-0.18}) {\lab};
     \node[anchor=west, font=\sffamily\footnotesize\bfseries, text=ink] at (\w,{-(\i-1)*0.55-0.18}) {\val\%};
   }
 \end{scope}
-\node[align=left, font=\sffamily\footnotesize, text=ink, anchor=south west, text width=5.2cm] at ($(p3.south west)+(0.2,0.12)$)
-  {$\bullet$ rests around the post-lunch dip\\
+\node[align=left, font=\sffamily\footnotesize, text=ink, anchor=south west, text width=5.3cm] at ($(p3.south west)+(0.2,0.12)$)
+  {$\bullet$ rests before the post-lunch dip\\
    $\bullet$ hard tasks while attention is high\\
-   $\bullet$ robust to sensor noise; 10 seeds, 500 test days};
+   $\bullet$ robust to noise, $\pm$30\% model changes};
 % ---------------- arrows
 \draw[arr] (p1.east) -- (p2.west);
 \draw[arr] (p2.east) -- (p3.west);

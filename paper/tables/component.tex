@@ -10,6 +10,12 @@ AA-DQN (hybrid actions, $k{=}4$, Double, Dueling) & 10 & 12.17 $\pm$ 0.15 & 0.72
 history $k{=}2$ & 3 & 11.17 $\pm$ 0.12 & 0.701 $\pm$ 0.001 & 568 \\
 history $k{=}8$ & 3 & 12.48 $\pm$ 0.37 & 0.733 $\pm$ 0.011 & 605 \\
 GRU encoder over $k{=}8$ history & 3 & 12.54 $\pm$ 0.16 & 0.728 $\pm$ 0.006 & 2463 \\
+learning rate $10^{-4}$ (nominal $5\times10^{-4}$) & 3 & 11.75 $\pm$ 0.16 & 0.719 $\pm$ 0.007 & 646 \\
+learning rate $10^{-3}$ & 3 & 12.19 $\pm$ 0.17 & 0.726 $\pm$ 0.001 & 723 \\
+discount $\gamma_{\mathrm{RL}}=0.95$ (nominal 0.99) & 3 & 11.72 $\pm$ 0.29 & 0.712 $\pm$ 0.009 & 664 \\
+discount $\gamma_{\mathrm{RL}}=0.999$ & 3 & 12.24 $\pm$ 0.08 & 0.727 $\pm$ 0.001 & 659 \\
 Vanilla DQN ($k{=}1$, no Double/Dueling) & 10 & 10.29 $\pm$ 0.26 & 0.677 $\pm$ 0.008 & 614 \\
+AA-PPO (hybrid actions) & 10 & 13.04 $\pm$ 0.30 & 0.751 $\pm$ 0.013 & 171 \\
+AA-PPO (intensity actions) & 10 & 13.20 $\pm$ 0.10 & 0.754 $\pm$ 0.003 & 172 \\
 \bottomrule
 \end{tabular}

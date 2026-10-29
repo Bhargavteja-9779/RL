@@ -12,7 +12,7 @@
 \input{numbers}
 \definecolor{cbg}{HTML}{F1F0EC}
 \definecolor{cfr}{HTML}{9A9993}
-\newtcolorbox{comment}[1]{colback=cbg,colframe=cfr,boxrule=0.4pt,arc=2pt,left=6pt,right=6pt,top=4pt,bottom=4pt,
+\newtcolorbox{rcomment}[1]{colback=cbg,colframe=cfr,boxrule=0.4pt,arc=2pt,left=6pt,right=6pt,top=4pt,bottom=4pt,
   fonttitle=\bfseries\small,coltitle=black,colbacktitle=cbg,title={#1},attach title to upper={\ }}
 \newcommand{\resp}{\par\smallskip\noindent\textbf{Response.}~}
 \newcommand{\change}{\par\smallskip\noindent\textbf{Changes in the manuscript.}~}
@@ -55,55 +55,55 @@ P.\,N. Bhargav Teja, Lanka Sree Chathurya, Rajay Vedaraj I.S.\ (corresponding au
 %=====================================================================
 \section*{Response to the Scientific Handling Editor}
 
-\begin{comment}{E1.}
+\begin{rcomment}{E1.}
 Please ensure that you elaborate on the novel aspects and limitations of your work. [\dots] More explanation about the novelty of the method is required.
-\end{comment}
+\end{rcomment}
 \resp We agree that the novelty was not stated precisely enough. The revised Introduction contains a new paragraph, ``Novelty with respect to existing approaches'', which lists four elements that distinguish the work from fatigue-aware scheduling and human--robot task allocation: (1) rest is a decision of the scheduler rather than a predefined break, so recovery is endogenous; (2) attention and fatigue are latent and observed only through noisy estimates, which makes the problem a POMDP and requires memory; (3) attention, fatigue and circadian rhythm jointly determine capacity, which creates a difficulty--capacity matching problem; and (4) the learned policies are evaluated against tuned, cognition-aware rules with rigorous statistics. The related-work section was extended with recent fatigue-aware and human-aware scheduling studies, and the positioning table (\Tab{tab:positioning}) now has a row for fatigue-aware human--robot task allocation.
 \change \Sec{sec:intro} (paragraph ``Novelty with respect to existing approaches''); \Sec{sec:related} and \Tab{tab:positioning}; new \Sec{sec:procons} (advantages and disadvantages); extended \Sec{sec:limitations} (limitations) and \Sec{sec:future} (future work).
 
-\begin{comment}{E2.}
+\begin{rcomment}{E2.}
 Please note that you should evaluate the references suggested based on their relevance and appropriateness [\dots].
-\end{comment}
+\end{rcomment}
 \resp We read the reference suggested by Reviewer~3 (Wu et al., \emph{Journal of Computational Design and Engineering}, 2025, doi:10.1093/jcde/qwaf144). It proposes a large-scale multi-objective evolutionary algorithm and is not about task scheduling. We cite it once, where we contrast offline population-based multi-objective optimisation with the reactive policy that our problem requires (\Sec{sec:related}, subsection ``Partial observability and multiple objectives in RL''). We also added 12 further recent (2024--2026) references on fatigue-aware and human-aware scheduling and DRL scheduling, which are closer to the topic (see R3.3).
 
-\begin{comment}{E3.}
+\begin{rcomment}{E3.}
 A graphical abstract is required. [\dots]
-\end{comment}
-\resp A graphical abstract is provided as a separate file (\texttt{graphical\_abstract.pdf} and \texttt{.png}, $2000\times 800$ pixels). It shows, from left to right, the problem (attention falls and fatigue rises during the day and are only noisily observed), the method (noisy observations, observation history, DRL agent, actions including rest) and the main result (on-time completion of EDF, the best tuned rule and the two learners).
+\end{rcomment}
+\resp A graphical abstract is provided as a separate file (\texttt{graphical\_abstract.pdf} and \texttt{.png}, $2000\times 707$ pixels). It shows, from left to right, the problem (attention falls and fatigue rises during the day and are only noisily observed), the method (noisy observations, observation history, DRL agent, actions including rest) and the main result (on-time completion of EDF, the best tuned rule and the two learners).
 
-\begin{comment}{E4.}
+\begin{rcomment}{E4.}
 Please provide 3--5 concise and clear Highlights [\dots].
-\end{comment}
+\end{rcomment}
 \resp Five highlights, each within 85 characters, are provided in a separate file (\texttt{highlights.pdf}).
 
-\begin{comment}{E5.}
+\begin{rcomment}{E5.}
 If you have used generative AI or AI-assisted tools to support the writing process [\dots], please ensure this is disclosed clearly in your manuscript.
-\end{comment}
+\end{rcomment}
 \resp The manuscript contains the Elsevier ``Declaration of generative AI and AI-assisted technologies in the manuscript preparation process'' before the references. It states which tool was used, for what purpose, and that the authors reviewed the content and take full responsibility for it.
 
-\begin{comment}{E6.}
+\begin{rcomment}{E6.}
 Please confirm that all required statements are included in your manuscript, such as: Data availability statement, CRediT author statement, Conflict of interest statement, Funding statement, Ethics approval (if applicable).
-\end{comment}
+\end{rcomment}
 \resp All five statements are included at the end of the manuscript: CRediT authorship contribution statement, Declaration of competing interest, Funding, Ethics statement (new: the study is computational and involved no human participants or personal data, so ethical approval was not required) and Data availability (code, configurations, raw results and analysis scripts are released).
 
-\begin{comment}{E7.}
+\begin{rcomment}{E7.}
 Rebuttal letter, highlighted and clean versions of the revised manuscript, cover letter.
-\end{comment}
+\end{rcomment}
 \resp This document is the point-by-point response. We provide a highlighted version (see the note above), a clean version, the revised supplementary material and a cover letter that summarises the revision.
 
 %=====================================================================
 \section*{Response to Reviewer \#3}
 We thank the reviewer for the positive assessment and the concrete suggestions, all of which we have implemented.
 
-\begin{comment}{R3.1.}
+\begin{rcomment}{R3.1.}
 It is recommended that authors include a Nomenclature in their paper, compiling and explaining all abbreviations, symbols, and notations used throughout the text.
-\end{comment}
+\end{rcomment}
 \resp Done. A Nomenclature section now follows the abstract. It lists all abbreviations and symbols, grouped into workload and time, cognitive state and observation, and decision problem and learning. While compiling it we removed three symbol clashes in the original notation (the belief state is now $\mathcal B_t$, the advantage function $\mathrm{Adv}$, and the arrival slot $e_i$; the discount factor is written $\gamma_{\mathrm{RL}}$ to distinguish it from the circadian amplitude $\gamma$).
 \change Nomenclature (after the abstract).
 
-\begin{comment}{R3.2.}
+\begin{rcomment}{R3.2.}
 How did the authors set parameters for their proposed algorithm? Please make these parameters sensitive to the algorithm's performance!
-\end{comment}
+\end{rcomment}
 \resp We now explain how every parameter was set and report its sensitivity. The new subsection ``How the parameters were set'' (\Sec{sec:paramsel}) distinguishes three groups. (i) Simulator parameters were fixed a priori from the literature; each is listed with its source in \Tab{tab:params}. (ii) Agent hyperparameters are standard values from the DQN and PPO literature and were not tuned on test data (\Tab{tab:hparams}). (iii) The parameters of the rule-based baselines were tuned by grid search on dedicated tuning days.
 
 The new \Sec{sec:sensitivity} reports the sensitivity analyses (three seeds per setting unless stated):
@@ -112,69 +112,69 @@ The new \Sec{sec:sensitivity} reports the sensitivity analyses (three seeds per 
 \item \emph{Discount factor} $\gamma_{\mathrm{RL}}\in\{0.95,0.99,0.999\}$: returns \compAADQNGZeroNineFiveRet, \compAADQNRet{} and \compAADQNGZeroNineNineNineRet.
 \item \emph{History length} $k\in\{1,2,4,8\}$ and a recurrent encoder, and each architectural component (Double Q-learning, dueling head, action set).
 \item \emph{Reward weight} $\lambda\in\{0,0.05,0.1,0.2,0.4\}$, which traces the productivity--fatigue Pareto front.
-\item \emph{Simulator parameters}: each of the seven cognitive parameters ($\alpha,\beta,\gamma,\delta,\eta,\kappa,\phi$) was changed by $-30\%$ and $+30\%$, one at a time, and all trained policies and tuned rules were re-evaluated on 500 test days under each of the 14 perturbed models (\Tab{tab:simsens}, \Fig{fig:simsens}). The best learned policy remained ahead of the best rule in \ssLearnedWins{} of the \ssNConds{} perturbed models (difference in return between \ssGapMin{} and $+$\ssGapMax).
+\item \emph{Simulator parameters}: each of the seven cognitive parameters ($\alpha,\beta,\gamma,\delta,\eta,\kappa,\phi$) was changed by $-30\%$ and $+30\%$, one at a time, and all trained policies and tuned rules were re-evaluated on 500 test days under each of the 14 perturbed models (\Tab{tab:simsens}, \Fig{fig:simsens}). AA-PPO remained ahead of the best rule in \ssPPOWins{} of the \ssNConds{} perturbed models (the best learned policy by between $+$\ssGapMin{} and $+$\ssGapMax{} in return), and the agents' hyperparameters changed the return of AA-DQN by at most about 0.45 within the tested ranges.
 \end{itemize}
 \change \Sec{sec:paramsel}, new \Sec{sec:sensitivity} with \Tab{tab:simsens} and \Fig{fig:simsens}, \Tab{tab:component}, \Tab{tab:params}, \Tab{tab:hparams}.
 
-\begin{comment}{R3.3.}
+\begin{rcomment}{R3.3.}
 Incorporating relevant and recent academic sources for task scheduling could strengthen your paper's validity [\dots]. Such as https://doi.org/10.1093/jcde/qwaf144
-\end{comment}
+\end{rcomment}
 \resp We added 13 references from 2024--2026, including the suggested one, all checked against their DOIs. They cover fatigue-aware job-shop and flow-shop scheduling with evolutionary algorithms and DRL, scheduling with human factors and multi-skilled workers, human feedback in RL-based scheduling, offline RL for dispatching, and fatigue-aware task allocation in human--robot collaboration, We also cite the original generalised advantage estimation paper for the new PPO learner. The suggested reference is cited where we discuss multi-objective optimisation (see E2).
 \change \Sec{sec:related}, \Tab{tab:positioning}, \Sec{sec:intro}.
 
-\begin{comment}{R3.4.}
+\begin{rcomment}{R3.4.}
 All mathematical expressions in the paper should be numbered.
-\end{comment}
+\end{rcomment}
 \resp Done. All display equations are now numbered (\Eq{eq:task} to \Eq{eq:metrics2}), including the Bellman equation, the belief state, the Huber loss, the exploration schedule, the PPO objective, the transition rules and the evaluation metrics, which were previously unnumbered or only given in words.
 
-\begin{comment}{R3.5.}
+\begin{rcomment}{R3.5.}
 I recommend presenting the advantages and disadvantages of the study in your discussion. Provide a comprehensive analysis of why your approach may be superior or otherwise.
-\end{comment}
+\end{rcomment}
 \resp We added the subsection ``Advantages and disadvantages of the approach'' (\Sec{sec:procons}). It compares the learned schedulers with tuned rules on performance, robustness to sensor noise, transparency, data and training requirements, generalisation and computational cost, and explains for each point why the approach is or is not superior. A summary table lists the advantages and disadvantages side by side. The section is honest about the cases in which a simple tuned rule is preferable, such as unseen workloads and settings in which transparency is paramount.
 \change New \Sec{sec:procons} with \Tab{tab:procons}.
 
-\begin{comment}{R3.6.}
+\begin{rcomment}{R3.6.}
 For the reference list, please follow the format and style guidelines specified by the target journal [\dots].
-\end{comment}
+\end{rcomment}
 \resp The manuscript uses the Elsevier \texttt{elsarticle} class with the numeric \texttt{elsarticle-num} style, as recommended in the \emph{Array} Guide for Authors: references are numbered in order of citation in square brackets, and the list gives authors, title, journal, volume, year, pages and DOI. We checked every entry for complete bibliographic data.
 
-\begin{comment}{R3.7.}
+\begin{rcomment}{R3.7.}
 It is recommended that the manuscript be carefully proofread to eliminate any errors in expression and to ensure clarity and coherence in writing.
-\end{comment}
+\end{rcomment}
 \resp The manuscript was rewritten and proofread in full. We shortened long sentences, made the terminology consistent (for example, ``on-time rate'', ``break share'', ``tuned rule''), defined every abbreviation at first use, removed repetitions from the original Introduction, and corrected grammatical errors.
 
-\begin{comment}{R3.8.}
+\begin{rcomment}{R3.8.}
 In revised manuscript, mark the changes by red/blue colour for easily identification.
-\end{comment}
+\end{rcomment}
 \resp Done. Please see the note on the highlighted version at the beginning of this letter: passages that answer a specific comment are printed in blue and tagged in the margin with the comment number.
 
 %=====================================================================
 \section*{Response to Reviewer \#4}
 We thank the reviewer for a rigorous critique. It identified the main methodological weaknesses of the original submission, and addressing them has changed the study substantially. Where the new experiments contradicted our original claims, we say so.
 
-\begin{comment}{R4.1.}
+\begin{rcomment}{R4.1.}
 The proposed framework primarily combines a standard DQN with manually defined attention and fatigue equations. The methodological contribution beyond integrating existing components is unclear, and the claimed research gap is not sufficiently established through a comprehensive comparison with existing human-aware scheduling and adaptive workload management methods.
-\end{comment}
+\end{rcomment}
 \resp We agree that the original text did not establish the gap. We made three changes. First, the related work now covers the human-aware scheduling literature systematically: fatigue and recovery models in dual-resource-constrained systems, rest-break optimisation, fatigue-aware job-shop and flow-shop scheduling (including recent DRL and evolutionary approaches), fatigue-aware human--robot task allocation, adaptive automation and interruption management, and just-in-time adaptive interventions. \Tab{tab:positioning} compares these streams on six properties. Second, the Introduction states the novelty precisely (see E1). In existing fatigue-aware schedulers, fatigue is a deterministic, fully observed cost of a given assignment, and recovery happens in predefined breaks. In our formulation, the scheduler decides when to rest, and the cognitive state is latent. Third, the methodological contribution is no longer ``DQN plus cognitive equations''. It is a POMDP formulation with an explicit rest action and a size-invariant, deadline-aware observation; a hybrid action space in which every baseline rule is representable, so the comparison is fair by construction; memory-based belief approximation, whose necessity we demonstrate; a framework that we instantiate with two different learners (AA-DQN and AA-PPO); and an evaluation protocol that compares learned policies with tuned, cognition-aware rules. We have also tried to make the contribution useful beyond the specific result: the simulator, the agents, the baselines and the evaluation protocol are released as a reproducible benchmark.
 \change \Sec{sec:intro} (contributions and novelty), \Sec{sec:related}, \Tab{tab:positioning}, \Sec{sec:method}.
 
-\begin{comment}{R4.2.}
+\begin{rcomment}{R4.2.}
 Oversimplified cognitive modeling: Attention and fatigue are represented using simple deterministic update equations with a sinusoidal circadian term. These equations are insufficiently justified and do not adequately capture the complexity and individual variability of human cognitive performance. The use of bounded observation noise alone does not establish that the proposed environment realistically represents partial observability.
-\end{comment}
+\end{rcomment}
 \resp We agree that the model is stylised, and we now state this clearly. We have, however, changed the model and its justification substantially:
 \begin{itemize}
 \item \emph{Stochastic, not deterministic.} The attention resource is perturbed by Gaussian process noise (\Eq{eq:H}), initial states are random, and task arrivals, difficulties and deadlines are random.
 \item \emph{Not sinusoidal.} The circadian term is the sum of two Gaussian components, a late-morning peak and a post-lunch trough (\Eq{eq:attention}), as in the three-process model of alertness.
 \item \emph{Justified.} Every functional form and parameter is linked to the literature: exponential fatigue accumulation and recovery from fatigue--recovery models in operations management, resource depletion from vigilance research, additive homeostatic and circadian components from biomathematical alertness models, and an attention-dependent work rate from resource theories of attention (\Sec{sec:problem}, paragraph ``Modelling choices'', and \Tab{tab:params}).
 \item \emph{Partial observability.} The observation noise is Gaussian (unbounded before clipping to the unit interval), not bounded, and the noise level is varied from $\sigma_o=0$ to $0.3$ at test time (\Sec{sec:robust}). An ablation with perfect observation shows that partial observability is the main factor limiting performance, and the component study shows that memory is necessary to act on the noisy estimates (\Sec{sec:ablation}, \Sec{sec:component}).
-\item \emph{Individual variability.} Policies are evaluated zero-shot on resilient and fatigue-prone worker profiles (\Sec{sec:robust}), and every cognitive parameter is perturbed by $\pm30\%$ (\Sec{sec:sensitivity}). The main conclusions hold across these perturbations, while the ranking of methods changes for some worker profiles, which we report.
+\item \emph{Individual variability.} Policies are evaluated zero-shot on resilient and fatigue-prone worker profiles (\Sec{sec:robust}), and every cognitive parameter is perturbed by $\pm30\%$ (\Sec{sec:sensitivity}). The main conclusions hold across these perturbations: AA-PPO is the best method for both worker profiles and in all 14 perturbed models, whereas the best rule changes between profiles.
 \end{itemize}
 We do not claim that the model captures the full complexity of human cognition. It is not calibrated to individual data, and real state estimators may be biased, drift or fail. These points are discussed as limitations, together with a concrete plan for calibration with physiological and behavioural data and a user study (\Sec{sec:limitations}, \Sec{sec:future}). We believe that a transparent, literature-grounded and fully released simulator is the appropriate first step before experiments with people, in the same way as simulators are used to develop schedulers for machines.
 \change \Sec{sec:problem} (Eqs.~\eqref{M-eq:attention}--\eqref{M-eq:obs}, paragraph ``Modelling choices'', \Tab{tab:params}), \Sec{sec:sensitivity}, \Sec{sec:robust}, \Sec{sec:limitations}.
 
-\begin{comment}{R4.3.}
+\begin{rcomment}{R4.3.}
 Fundamental concerns with the action space: The agent chooses only between executing the easiest task, executing the hardest task, and taking a break. This formulation does not allow explicit selection among individual tasks or adequately account for task-specific deadlines and execution costs. Furthermore, the manuscript does not clearly explain how the scheduling decisions interact with task completion, time progression, and deadline violations.
-\end{comment}
+\end{rcomment}
 \resp We addressed both parts.
 
 \emph{Action space.} The revised action space has five macro-actions (\Eq{eq:actions}): an easy task, a hard task, the earliest-deadline task, the shortest-remaining task, or a break. Within the easy and hard classes, the task with the earliest deadline is chosen, so task-specific deadlines are respected, and the \textsc{spt} action accounts for task-specific execution costs. The observation contains, for each class, the slack of the most urgent task, the number of overdue tasks and the remaining work of the shortest task (\Eq{eq:o}), so the agent sees the deadline and cost information that these choices require. An important property of this design is that every rule-based baseline can be expressed as a policy over the action set, so the learned policy is never handicapped by its action space relative to the baselines. We also report the original three-action (intensity-only) variant. Interestingly, it performs as well as or better than the hybrid action set (\Sec{sec:component}), so the restriction is not the limiting factor.
@@ -184,9 +184,9 @@ We chose macro-actions rather than individual task selection deliberately: they 
 \emph{Interaction with completion, time and deadlines.} The new subsection ``Decision epochs, task progression and deadlines'' (\Sec{sec:transitions}) defines the dispatch function that maps an action to a task (\Eq{eq:dispatch}), the progress of the selected task by the current work rate and its completion time (\Eq{eq:progress}), and the sets of tasks completed and deadlines missed in each slot (\Eq{eq:events}), which enter the reward (\Eq{eq:reward}) and the metrics (\Eq{eq:metrics1}). The slot-by-slot sequence of events is given in Supplementary Section~\ref{S-sec:s-spec}.
 \change \Sec{sec:actions}, new \Sec{sec:transitions} (Eqs.~\eqref{M-eq:dispatch}--\eqref{M-eq:events}), \Eq{eq:o}, \Sec{sec:component}, Supplementary Section~\ref{S-sec:s-spec}.
 
-\begin{comment}{R4.4.}
+\begin{rcomment}{R4.4.}
 Insufficient experimental validation: The evaluation relies entirely on a simulated environment without validation against real human performance data or an established benchmark. The comparison with FIFO and EDF is too limited to demonstrate the superiority of the proposed approach. More competitive baselines, including heuristic-based cognitive-aware scheduling and alternative reinforcement learning methods, are necessary.
-\end{comment}
+\end{rcomment}
 \resp \emph{Baselines.} We agree, and this was the most consequential change. The revised study includes nine rule-based schedulers (\Sec{sec:baselines}): Random, FIFO, EDF and SPT; EDF and SPT with periodic rest; EDF and SPT with state-triggered rest (rest when observed fatigue exceeds or observed attention falls below a threshold); and a hand-crafted cognition-aware heuristic that also matches task difficulty to observed attention. The five parametric rules were grid-tuned on dedicated tuning days, re-tuned for every environment variant, and observe the same noisy signals as the agents.
 
 \emph{Alternative RL methods.} We added proximal policy optimisation (PPO) as a policy-gradient learner with the same observation history, action sets, training budget and checkpoint selection, with ten seeds for each of the two action sets (\Sec{sec:aappo}). We also report a vanilla memoryless DQN, a recurrent (GRU) variant and a domain-randomised variant. PPO used standard default hyperparameters and was not tuned.
@@ -196,9 +196,9 @@ Insufficient experimental validation: The evaluation relies entirely on a simula
 \emph{Real data.} We agree that validation with real workers is the most important next step. To our knowledge, no public dataset contains, for the same workers, minute-level estimates of attention and fatigue together with task logs, deadlines and break decisions, which a closed-loop scheduler needs. Collecting such data requires a user study with ethical approval, which is beyond the scope of this paper. We therefore (i) ground every model component in the literature, (ii) test zero-shot robustness to sensor noise, worker profiles and workloads, (iii) perturb every cognitive parameter, and (iv) state the gap clearly as a limitation and describe how calibration and a user study would be designed (\Sec{sec:limitations}, \Sec{sec:future}).
 \change \Sec{sec:baselines}, new \Sec{sec:aappo}, \Sec{sec:main}, \Tab{tab:main}, \Tab{tab:tests}, \Sec{sec:robust}, \Sec{sec:limitations}, \Sec{sec:future}.
 
-\begin{comment}{R4.5.}
+\begin{rcomment}{R4.5.}
 Questionable performance evaluation: The reward function directly incorporates fatigue and attention, yet these same quantities are subsequently used to support claims of improved cognitive sustainability. [\dots] The authors should provide stronger evidence using independent performance metrics, including task completion rates, deadline violations, and workload-adjusted productivity.
-\end{comment}
+\end{rcomment}
 \resp This is an important point, and we agree. We made three changes.
 \begin{enumerate}[label=(\roman*)]
 \item \emph{Independent metrics.} \Sec{sec:metrics} defines metrics computed from task outcomes, which do not depend on the reward weights (\Eq{eq:metrics1}): the on-time rate (one minus the deadline-violation rate), the completion rate including late completions, and the difficulty-weighted on-time rate, which measures workload-adjusted productivity. The main conclusions are based on these metrics. For example, AA-PPO completes \PPOOnTimePct\% of tasks on time compared with \bestHeurOnTimePct\% for the best rule and \EDFOnTimePct\% for EDF, and its difficulty-weighted on-time rate is \PPOWOnTimePct\% compared with \SPTThresholdWOnTimePct\% for the best rule.
@@ -207,9 +207,9 @@ Questionable performance evaluation: The reward function directly incorporates f
 \end{enumerate}
 \change \Sec{sec:metrics} (Eqs.~\eqref{M-eq:metrics1}--\eqref{M-eq:metrics2}), \Tab{tab:main}, \Sec{sec:ablation}, \Sec{sec:pareto}.
 
-\begin{comment}{R4.6.}
+\begin{rcomment}{R4.6.}
 Insufficient statistical analysis and reproducibility: The results are reported without adequate information about independent training seeds, confidence intervals, or statistical significance testing. Reporting averages over the final 100 episodes does not establish robustness or generalization. Important implementation details, including the complete transition rules, reward coefficients, observation-noise parameters, and hyperparameter selection procedure, are also missing or insufficiently specified.
-\end{comment}
+\end{rcomment}
 \resp We agree with every point and changed the protocol completely.
 \begin{itemize}
 \item \emph{Seeds.} Every main configuration was trained with ten independent seeds; ablations with five; the sensitivity studies with three.
@@ -220,13 +220,13 @@ Insufficient statistical analysis and reproducibility: The results are reported 
 \end{itemize}
 \change \Sec{sec:setup} (protocol, metrics, statistical analysis, parameter setting, implementation), \Tab{tab:hparams}, \Tab{tab:tests}, Supplementary Sections~\ref{S-sec:s-spec}--\ref{S-sec:s-repro}.
 
-\begin{comment}{R4.7.}
+\begin{rcomment}{R4.7.}
 Unsupported conclusions from the ablation study: The claim that cognitive modeling is the necessary and sufficient differentiator between reinforcement learning and traditional scheduling is too strong. [\dots] The conclusions should be supported by more rigorous controlled experiments.
-\end{comment}
+\end{rcomment}
 \resp We agree, and the new experiments show that the original claim was in fact incorrect. We redesigned the ablation as a controlled experiment: AA-DQN was retrained with five seeds in each of four environment variants (perfect observation, no circadian process, static capacity, task-only reward), and all rule-based baselines were re-tuned for each variant, so that the learned policy is always compared with the best rule \emph{for that variant} on the same test days (\Sec{sec:ablation}, \Tab{tab:ablation}). The results are:
 \begin{itemize}
 \item In the static-capacity model, without any cognitive dynamics, AA-DQN still beats the best rule, by combining urgency- and processing-time-based dispatching depending on the queue state. Cognitive modelling is therefore \emph{not necessary} for learning to help, and we explicitly retract the original claim in the paper.
-\item In the nominal model with cognitive dynamics, the AA-DQN agent used in the ablations only ties with the best tuned rule in return, and learned policies lose to tuned rules on unseen workloads. Modelling cognition is therefore \emph{not sufficient} for an advantage either.
+\item In the nominal model with cognitive dynamics, the AA-DQN agent used in the ablations only ties with the best tuned rule in return and loses to tuned rules on unseen workloads, whereas AA-PPO, with the same observation, actions and reward, exceeds them. Modelling cognition is therefore \emph{not sufficient} for an advantage either: whether learning helps also depends on the learner and on the quality of the state estimate.
 \item What the cognitive dynamics change is the size of the stakes (rules that ignore capacity lose a large part of the achievable return) and the importance of resting. The advantage of learning grows mainly with the quality of the cognitive-state estimate.
 \end{itemize}
 We now state these findings with their scope (``in this simulator'', ``for the tested workloads''), and we list the remaining restrictions (simulated environment, macro-actions) as limitations.

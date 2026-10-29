@@ -40,7 +40,7 @@ Q(x,a;\theta)=V(x;\theta)+\Big(\mathrm{Adv}(x,a;\theta)-\tfrac1{|\mathcal A|}\te
 \end{equation}
 The shared body consists of two fully connected layers of 128 ReLU units. The loss is the Huber loss of the TD error, which is robust to the occasional large reward of a hard task completed on time \cite{huber1964}:
 \begin{equation}
-\mathcal L(\theta)=\mathbb E_{(x,a,r,x')\sim\mathcal D}\big[\ell_{\delta=1}\big(Q(x,a;\theta)-y\big)\big],\qquad
+\mathcal L(\theta)=\mathbb E_{(x,a,r,x')\sim\mathcal D}\big[\ell_{\delta=1}\big(Q(x,a;\theta)-y\big)\big],\quad
 \ell_{\delta}(u)=\begin{cases}\tfrac12u^2, & |u|\le\delta,\\ \delta\big(|u|-\tfrac12\delta\big), & \text{otherwise.}\end{cases}
 \label{eq:huber}
 \end{equation}
@@ -49,7 +49,10 @@ Parameters are updated with Adam \cite{kingma2015} and gradient-norm clipping. T
 \subsection{Policy-gradient instantiation (AA-PPO)}\label{sec:aappo}
 \rev{\revnote{R4.4}The framework does not depend on a particular learning algorithm: the observation history, the action sets and the reward are shared, and only the learner changes. To test whether a policy-gradient learner exploits the same information better than a value-based one, we instantiate the framework with proximal policy optimisation \cite{schulman2017} and call the result AA-PPO. A stochastic policy $\pi_\theta(a\mid x)$ and a value function $V_\psi(x)$ share two hidden layers and are trained on rollouts of on-policy experience. Each update maximises the clipped surrogate objective
 \begin{equation}
-\mathcal L^{\mathrm{PPO}}(\theta)=\mathbb E_t\Big[\min\big(\varrho_t(\theta)\widehat{\mathrm{Adv}}_t,\ \mathrm{clip}(\varrho_t(\theta),1-\varepsilon_{\mathrm{c}},1+\varepsilon_{\mathrm{c}})\widehat{\mathrm{Adv}}_t\big)\Big]-c_v\,\mathbb E_t\big[(V_\psi(x_t)-\hat G_t)^2\big]+c_e\,\mathbb E_t\big[\mathbb H(\pi_\theta(\cdot\mid x_t))\big],
+\begin{split}
+\mathcal L^{\mathrm{PPO}}(\theta)={}&\mathbb E_t\Big[\min\big(\varrho_t(\theta)\widehat{\mathrm{Adv}}_t,\ \mathrm{clip}(\varrho_t(\theta),1-\varepsilon_{\mathrm{c}},1+\varepsilon_{\mathrm{c}})\widehat{\mathrm{Adv}}_t\big)\Big]\\
+&-c_v\,\mathbb E_t\big[(V_\psi(x_t)-\hat G_t)^2\big]+c_e\,\mathbb E_t\big[\mathbb H(\pi_\theta(\cdot\mid x_t))\big],
+\end{split}
 \label{eq:ppo}
 \end{equation}
 where $\varrho_t(\theta)=\pi_\theta(a_t\mid x_t)/\pi_{\theta_{\mathrm{old}}}(a_t\mid x_t)$ is the probability ratio, $\widehat{\mathrm{Adv}}_t$ the generalised advantage estimate \cite{schulman2016gae}, $\hat G_t=\widehat{\mathrm{Adv}}_t+V_\psi(x_t)$ the return target, $\mathbb H$ the entropy, and $\varepsilon_{\mathrm{c}}=0.2$, $c_v=0.5$, $c_e=0.01$. At test time AA-PPO acts greedily, $a_t=\arg\max_a\pi_\theta(a\mid x_t)$. AA-PPO was added during the revision of this paper in response to a reviewer's request for an alternative DRL method. Its settings are the standard defaults and were not tuned (Section~\ref{sec:baselines}).}

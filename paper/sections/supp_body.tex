@@ -12,7 +12,7 @@ Table~\ref{tab:s-heur} lists the parameters selected by grid search for each env
 \end{table}
 
 \section{Checkpoint selection}\label{sec:s-ckpt}
-Table~\ref{tab:s-ckpt} compares, for each learned policy, the validation-selected checkpoint (primary results) with the final iterate after 5000 episodes. Selection improves both agents, which is consistent with the policy oscillation visible in Fig.~\ref{fig:s-train}. The ranking AA-DQN $>$ DQN holds for both checkpoint choices.
+Table~\ref{tab:s-ckpt} compares, for each learned policy, the validation-selected checkpoint (primary results) with the final iterate after 5000 episodes. Selection improves both DQN-based agents, which is consistent with the policy oscillation visible in Fig.~\ref{fig:s-train}. For AA-PPO, whose learning curve is smooth, the final iterate is practically as good as the selected checkpoint. The ranking AA-PPO $>$ AA-DQN $>$ DQN holds for both checkpoint choices.
 
 \begin{table}[h]
 \centering
@@ -28,6 +28,17 @@ Table~\ref{tab:s-ckpt} compares, for each learned policy, the validation-selecte
 \caption{Training return (left; 50-episode moving average, $\epsilon$-greedy) and Huber TD loss (right) for DQN and AA-DQN (mean $\pm$ s.d.\ over ten seeds).}
 \label{fig:s-train}
 \end{figure}
+
+\section{Statistical comparisons for AA-DQN}\label{sec:s-tests}
+Table~\ref{tab:s-tests} gives the paired comparisons of the hybrid AA-DQN with each rule-based baseline, in the same format as the AA-PPO comparisons in the main text (Table~\ref{M-tab:tests}).
+
+\begin{table}[h]
+\centering
+\caption{Paired comparison of AA-DQN (hybrid actions) with each baseline on 500 common-random-number test days: mean difference with 95\% bootstrap CI (on-time rates in percentage points), matched-pairs rank-biserial correlation $r_{rb}$ (positive favours AA-DQN), and Holm-adjusted Wilcoxon signed-rank $p$-values over the nine comparisons.}
+\label{tab:s-tests}
+\small
+\resizebox{\textwidth}{!}{\input{tables/stat_tests_aadqn}}
+\end{table}
 
 \section{Component and sensitivity analysis}\label{sec:s-comp}
 Table~\ref{tab:s-comp} reproduces the component study of the main text with all configurations, including the history length $k$ and the recurrent (GRU) encoder.

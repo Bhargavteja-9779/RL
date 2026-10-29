@@ -23,15 +23,15 @@ The main configurations were trained with ten independent seeds, the environment
 \subsection{Metrics}\label{sec:metrics}
 \rev{\revnote{R4.5}Besides the return (Eq.~\eqref{eq:objective} with $\gamma_{\mathrm{RL}}=1$), which depends on the reward weights, we report operational metrics that are independent of the reward and are computed from the task outcomes and the \emph{true} latent states. With $\tau_i$ the completion slot of task $i$ (Eq.~\eqref{eq:progress}), the on-time rate, the difficulty-weighted on-time rate and the completion rate are
 \begin{equation}
-\mathrm{OT}=\frac1N\sum_{i=1}^N\mathbb 1(\tau_i\le D_i),\qquad
-\mathrm{WOT}=\frac{\sum_i d_i\,\mathbb 1(\tau_i\le D_i)}{\sum_i d_i},\qquad
+\mathrm{OT}=\frac1N\sum_{i=1}^N\mathbb 1(\tau_i\le D_i),\quad
+\mathrm{WOT}=\frac{\sum_i d_i\,\mathbb 1(\tau_i\le D_i)}{\sum_i d_i},\quad
 \mathrm{CR}=\frac1N\sum_{i=1}^N\mathbb 1(\tau_i\le T),
 \label{eq:metrics1}
 \end{equation}
 so that $1-\mathrm{OT}$ is the deadline-violation rate and WOT measures workload-adjusted productivity. The mean attention, mean fatigue, high-fatigue exposure and break share are
 \begin{equation}
-\bar A=\frac1T\sum_{t=1}^{T}A_t,\qquad \bar F=\frac1T\sum_{t=1}^{T}F_t,\qquad
-\mathrm{HFE}=\frac1T\sum_{t=1}^{T}\mathbb 1(F_t>0.7),\qquad \mathrm{BS}=\frac1T\sum_{t=0}^{T-1}b_t.
+\bar A=\frac1T\sum_{t=1}^{T}A_t,\quad \bar F=\frac1T\sum_{t=1}^{T}F_t,\quad
+\mathrm{HFE}=\frac1T\sum_{t=1}^{T}\mathbb 1(F_t>0.7),\quad \mathrm{BS}=\frac1T\sum_{t=0}^{T-1}b_t.
 \label{eq:metrics2}
 \end{equation}
 Because the reward contains $A_t$ and $F_t$ (Eq.~\eqref{eq:reward}), claims about cognitive sustainability are based on the reward-independent outcomes OT, WOT and CR, and are checked with an agent trained without cognitive reward terms (Section~\ref{sec:ablation}).}
@@ -49,7 +49,7 @@ The simulator, agents and baselines are implemented in Python with NumPy and PyT
 \centering
 \caption{Agent hyperparameters. AA-PPO uses the same observation history, action sets, training budget and checkpoint selection as AA-DQN.}
 \label{tab:hparams}
-\small
+\footnotesize
 \begin{tabular}{lll}
 \toprule
 Hyperparameter & DQN & AA-DQN \\
@@ -64,17 +64,17 @@ Replay capacity, warm-up & \multicolumn{2}{c}{50\,000, 1\,000 transitions} \\
 Minibatch size & \multicolumn{2}{c}{64} \\
 Target update period $C$ & \multicolumn{2}{c}{1\,000 steps (hard copy)} \\
 Loss, gradient clip & \multicolumn{2}{c}{Huber ($\delta=1$), $\|\nabla\|_2\le10$} \\
-Exploration & \multicolumn{2}{c}{$\epsilon$: $1.0\rightarrow0.01$, exponential (0.05 at 50\% of budget)} \\
+Exploration & \multicolumn{2}{c}{$\epsilon$: $1.0\rightarrow0.01$, exponential (0.05 at half budget)} \\
 Action set & \multicolumn{2}{c}{\{\textsc{easy}, \textsc{hard}, \textsc{edf}, \textsc{spt}, \textsc{break}\}} \\
 Training budget & \multicolumn{2}{c}{5\,000 episodes = 240\,000 decisions} \\
-Checkpoint selection & \multicolumn{2}{c}{best greedy return on 100 validation days, every 100 episodes} \\
+Checkpoint selection & \multicolumn{2}{c}{best greedy return on 100 validation days (every 100 ep.)} \\
 \midrule
 \multicolumn{3}{l}{\emph{AA-PPO}} \\
-Network & \multicolumn{2}{c}{shared body 2 $\times$ 128, tanh; linear policy and value heads} \\
+Network & \multicolumn{2}{c}{shared 2 $\times$ 128 tanh body; linear policy and value heads} \\
 Optimiser, learning rate & \multicolumn{2}{c}{Adam ($\epsilon=10^{-5}$), $3\times10^{-4}$} \\
-Rollout length, epochs, minibatch & \multicolumn{2}{c}{2\,048 steps (completed episodes), 10, 256} \\
+Rollout, epochs, minibatch & \multicolumn{2}{c}{2\,048 steps, 10, 256} \\
 Clip $\varepsilon_{\mathrm{c}}$, GAE $\lambda_{\mathrm{GAE}}$, discount & \multicolumn{2}{c}{0.2, 0.95, 0.99} \\
-Value / entropy coefficients, gradient clip & \multicolumn{2}{c}{0.5 / 0.01, $\|\nabla\|_2\le0.5$} \\
+Value/entropy coef., grad.\ clip & \multicolumn{2}{c}{0.5 / 0.01, $\|\nabla\|_2\le0.5$} \\
 Action at test time & \multicolumn{2}{c}{$\arg\max_a\pi_\theta(a\mid x)$ (greedy)} \\
 \bottomrule
 \end{tabular}

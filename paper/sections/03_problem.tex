@@ -105,7 +105,10 @@ A task completed after its deadline counts as late, and a task still unfinished 
 \subsection{Reward}
 The per-slot reward combines task outcomes with cognitive terms:
 \begin{equation}
-r_t=\underbrace{\sum_{i\in\mathcal C_t}(1+d_i)\big[\mathbb 1(t+1\le D_i)+0.25\,\mathbb 1(t+1>D_i)\big]-0.5\,|\mathcal M_t|}_{r^{\text{task}}_t}\;+\;\mu A_{t+1}\;-\;\lambda F_{t+1},
+\begin{split}
+r_t={}&\underbrace{\sum_{i\in\mathcal C_t}(1+d_i)\big[\mathbb 1(t+1\le D_i)+0.25\,\mathbb 1(t+1>D_i)\big]-0.5\,|\mathcal M_t|}_{r^{\text{task}}_t}\\
+&+\mu A_{t+1}-\lambda F_{t+1},
+\end{split}
 \label{eq:reward}
 \end{equation}
 where $\mathcal C_t$ is the set of tasks completed in slot $t$, $\mathcal M_t$ is the set of tasks whose deadline expires unfinished at the end of slot $t$, $\mu=0.05$ and $\lambda=0.10$. Harder tasks are worth more, late completion retains a quarter of the value, and each missed deadline costs $0.5$. The attention and fatigue terms express the organisation's preference for sustainable work. Because such terms can change the optimal policy \cite{ng1999}, we (i) report reward-independent operational metrics (on-time rate, completion, fatigue exposure) alongside the return, (ii) train an agent with $\lambda=\mu=0$ to show that the learned behaviour is driven by the dynamics rather than by the reward terms, and (iii) sweep $\lambda$ to trace the productivity--fatigue Pareto front. The objective is to find a policy $\pi$ that maps observation histories to actions and maximises the expected discounted return
@@ -119,7 +122,7 @@ J(\pi)=\mathbb E_\pi\Big[\sum_{t=0}^{T-1}\gamma_{\mathrm{RL}}^t\, r_t\Big].
 \caption{Nominal simulator parameters and their rationale.}
 \label{tab:params}
 \small
-\begin{tabular}{p{4.3cm}lp{7.0cm}}
+\begin{tabular}{p{3.9cm}lp{6.1cm}}
 \toprule
 Parameter & Value & Rationale / source \\
 \midrule
